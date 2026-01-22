@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>מפקח בנייה | פיקוח בנייה מקצועי</title>
+
+  <link rel="stylesheet" href="../CSS/style.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="topbar">
+    <div class="container topbar__inner">
+      <a class="brand" href="#">
+        <span class="brand__mark">MB</span>
+        <span class="brand__text">
+          <strong>מפקח בנייה</strong>
+          <small>פיקוח, ליווי, בדיקות איכות</small>
+        </span>
+      </a>
+
+      <nav class="nav">
+        <a href="#services">שירותים</a>
+        <a href="#projects">פרויקטים</a>
+        <a href="#damage">בדיקת נזק</a>
+        <a href="#contact" class="btn btn--primary">יצירת קשר</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container hero__grid">
+      <div class="hero__content">
+        <h1>פיקוח בנייה שמונע טעויות יקרות</h1>
+        <p>
+          ליווי מקצועי לכל שלב בבנייה/שיפוץ: בדיקות איכות, תיאום מול קבלנים,
+          איתור ליקויים, ודוחות מסודרים — כדי שתישאר בשליטה.
+        </p>
+
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="#contact">קביעת שיחת ייעוץ</a>
+          <a class="btn btn--ghost" href="#damage">בדיקת נזק מתמונה</a>
+        </div>
+
+        <div class="hero__badges">
+          <span class="badge">ניסיון בשטח</span>
+          <span class="badge">דוחות ברורים</span>
+          <span class="badge">ליווי צמוד</span>
+        </div>
+      </div>
+
+      <div class="hero__card">
+        <div class="card card--stat">
+          <h3>במה אני עוזר?</h3>
+          <ul class="list">
+            <li>בדיקות לפני יציקות / איטום / ריצוף</li>
+            <li>איתור ליקויי בנייה ותיעוד</li>
+            <li>ליווי מסירה מול קבלן</li>
+            <li>ניהול סיכונים וחסכון בעלויות</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Services -->
+  <section id="services" class="section">
+    <div class="container">
+      <header class="section__head">
+        <h2>שירותים</h2>
+        <p>חבילות שירות גמישות לפי היקף הפרויקט והתקציב.</p>
+      </header>
+
+      <div class="grid grid--3">
+        <article class="card">
+          <h3>פיקוח בנייה</h3>
+          <p>ביקורות באתר, בדיקות איכות, תיעוד, והנחיות לתיקון.</p>
+          <ul class="mini">
+            <li>ביקורים מתוזמנים</li>
+            <li>רשימת ליקויים</li>
+            <li>תיעוד תמונות</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>ליווי שיפוץ</h3>
+          <p>תיאום בין בעלי מקצוע, בדיקות לפני שלבי סגירה, ושקט נפשי.</p>
+          <ul class="mini">
+            <li>בקרת ביצוע</li>
+            <li>איכות חומרים</li>
+            <li>הקטנת טעויות</li>
+          </ul>
+        </article>
+
+        <article class="card">
+          <h3>מסירה ואכלוס</h3>
+          <p>בדיקת דירה לפני מסירה, איתור ליקויים, ועבודה מול הקבלן.</p>
+          <ul class="mini">
+            <li>דוח מסירה</li>
+            <li>בדיקת רטיבויות</li>
+            <li>מעקב תיקונים</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Projects -->
+  <section id="projects" class="section section--alt">
+    <div class="container">
+      <header class="section__head">
+        <h2>פרויקטים</h2>
+        <p>דוגמאות לליווי ובקרת איכות בפרויקטים שונים.</p>
+      </header>
+
+      <div class="grid grid--3">
+        <article class="card card--project">
+          <div class="ph"></div>
+          <h3>שיפוץ דירה</h3>
+          <p>בקרת ריצוף, אינסטלציה, ואיטום.</p>
+        </article>
+
+        <article class="card card--project">
+          <div class="ph"></div>
+          <h3>בנייה פרטית</h3>
+          <p>פיקוח שלד, בטון, והתקדמות לפי תוכניות.</p>
+        </article>
+
+        <article class="card card--project">
+          <div class="ph"></div>
+          <h3>דוח מסירה</h3>
+          <p>איתור ליקויים לפני כניסה לדירה.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Damage Analyzer (UI only) -->
+  <section id="damage" class="section">
+    <div class="container">
+      <header class="section__head">
+        <h2>בדיקת נזק מתמונה</h2>
+        <p>
+          העלה תמונה, והממשק יציג את סוג הנזק שחזר מהמערכת.
+          (הכפתור מפעיל JS שישלח ל-API שלך.)
+        </p>
+      </header>
+
+      <div class="damage">
+        <div class="card">
+          <h3>העלאת תמונה</h3>
+
+          <form class="upload" id="damageForm">
+            <label class="upload__box" for="damageImage">
+              <input id="damageImage" name="images" type="file" accept="image/*" />
+              <span class="upload__hint">
+                לחץ כדי לבחור תמונה / גרור לכאן
+              </span>
+              <span class="upload__note">JPG/PNG/WebP</span>
+            </label>
+
+            <div class="upload__row">
+              <div class="field">
+                <label for="vehicleType">סוג נכס (אופציונלי)</label>
+                <input id="vehicleType" type="text" placeholder="דירה / בית / מרפסת..." />
+              </div>
+              <div class="field">
+                <label for="year">שנה (אופציונלי)</label>
+                <input id="year" type="number" placeholder="2024" />
+              </div>
+            </div>
+
+            <button class="btn btn--primary" type="button" id="analyzeBtn">
+              ניתוח תמונה
+            </button>
+
+            <p class="muted">
+              * כרגע זה UI בלבד. ה-JS שלך צריך לשלוח את הקובץ ל-API ולהציג את התוצאה.
+            </p>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3>תוצאה</h3>
+
+          <div class="result">
+            <div class="result__row">
+              <span class="result__label">סטטוס</span>
+              <span class="result__value" id="statusText">ממתין לקובץ…</span>
+            </div>
+
+            <div class="result__row">
+              <span class="result__label">סוג נזק</span>
+              <span class="result__value" id="damageType">—</span>
+            </div>
+
+            <div class="result__row">
+              <span class="result__label">פירוט</span>
+              <span class="result__value" id="details">—</span>
+            </div>
+
+            <div class="preview" id="previewBox" aria-hidden="true">
+              <img id="previewImg" alt="תצוגה מקדימה" />
+            </div>
+          </div>
+
+          <div class="note">
+            <strong>דוגמאות לסוגי נזק אפשריים:</strong>
+            <div class="chips">
+              <span class="chip">סדק</span>
+              <span class="chip">רטיבות</span>
+              <span class="chip">התקלפות צבע</span>
+              <span class="chip">שבר</span>
+              <span class="chip">קורוזיה</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contact -->
+  <section id="contact" class="section section--alt">
+    <div class="container">
+      <header class="section__head">
+        <h2>יצירת קשר</h2>
+        <p>השאר פרטים ואחזור אליך.</p>
+      </header>
+
+      <div class="contact">
+        <form class="card contact__form">
+          <div class="field">
+            <label>שם מלא</label>
+            <input type="text" placeholder="ישראל ישראלי" />
+          </div>
+          <div class="field">
+            <label>טלפון</label>
+            <input type="tel" placeholder="05X-XXXXXXX" />
+          </div>
+          <div class="field">
+            <label>הודעה</label>
+            <textarea rows="4" placeholder="מה הפרויקט ומה אתה צריך?"></textarea>
+          </div>
+          <button class="btn btn--primary" type="button">שליחה</button>
+          <p class="muted">* טופס דמו. חיבור אמיתי למייל/שרת יתווסף ב-JS/API.</p>
+        </form>
+
+        <aside class="card contact__info">
+          <h3>פרטים</h3>
+          <p><strong>אזור פעילות:</strong> מרכז / שרון / שפלה</p>
+          <p><strong>שעות:</strong> א׳–ה׳ 09:00–18:00</p>
+          <p><strong>טלפון:</strong> 050-0000000</p>
+          <p><strong>מייל:</strong> example@mail.com</p>
+          <div class="hr"></div>
+          <p class="muted">
+            אפשר גם לשלוח תמונות בוואטסאפ לקבלת חוות דעת ראשונית.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer__inner">
+      <span>© <span id="yearNow"></span> מפקח בנייה</span>
+      <span class="muted">נבנה כפרויקט דמו</span>
+    </div>
+  </footer>
+
+  <!-- small inline helper (optional) -->
+  <script>
+    document.getElementById("yearNow").textContent = new Date().getFullYear();
+  </script>
+
+  <!-- your JS (you said you already have JS files) -->
+  <script type="module" src="../JS/app.js"></script>
+
+</body>
+</html>
