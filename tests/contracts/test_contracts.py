@@ -28,6 +28,7 @@ def test_client_api_openapi_endpoint_is_locked():
     openapi = _read_text("contracts/openapi.yaml")
     assert "/api/property/analyze:" in openapi
     assert "/api/accident/analyze:" not in openapi
+    assert '"422":' in openapi
 
 
 def test_client_api_request_schema_has_canonical_fields():
@@ -88,6 +89,9 @@ def test_client_api_implementation_uses_canonical_contract():
 
     assert 'fd.append("property_type"' not in client_js
     assert 'fd.append("vehicle_type"' not in client_js
+    assert "res.status === 422" in client_js
+    assert "Array.isArray(json.results)" in client_js
+    assert "send_json(res, final_res.ok ? 200 : 422" in api_route
 
 
 def test_api_engine_contract_files_are_consistent():
@@ -121,3 +125,6 @@ def test_engine_runtime_endpoint_and_shape_match_contract():
     assert "paths" in engine_service
     assert '"results"' in engine_service
     assert '"damage_types"' in engine_service
+    assert "X-RateLimit-Key" in engine_service
+    assert "ENGINE_RATE_LIMIT_BACKEND" in engine_service
+    assert "redis://" in engine_service

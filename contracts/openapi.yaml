@@ -61,6 +61,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Valid request but no image could be successfully analyzed
+          content:
+            application/json:
+              schema:
+                $ref: ./schemas/analyze_response.schema.json
         "500":
           description: Internal error
           content:

@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 import os
+import tempfile
+import threading
+import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi import Header
+from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from ultralytics import YOLO
@@ -13,6 +19,39 @@ from ultralytics import YOLO
 class AnalyzeRequest(BaseModel):
     request_id: str = ""
     paths: list[str] = Field(default_factory=list)
+
+
+def _resolve_allowed_roots() -> list[Path]:
+    raw = os.getenv("ENGINE_ALLOWED_ROOTS", "").strip()
+    if not raw:
+        # support both docker-compose shared volume and local API temp directory
+        return [
+            Path("/shared-tmp").resolve(),
+            (Path(tempfile.gettempdir()) / "buildcheck_api").resolve(),
+        ]
+
+    roots: list[Path] = []
+    for token in raw.split(os.pathsep):
+        token = token.strip()
+        if not token:
+            continue
+        roots.append(Path(token).expanduser().resolve())
+    return roots
+
+
+def _is_path_within_allowed_roots(path: Path, allowed_roots: list[Path]) -> bool:
+    try:
+        resolved = path.resolve()
+    except Exception:
+        return False
+
+    for root in allowed_roots:
+        try:
+            resolved.relative_to(root)
+            return True
+        except ValueError:
+            continue
+    return False
 
 
 def _resolve_model_path() -> Path:
@@ -63,36 +102,159 @@ def _extract_damage_types(result: Any, names: Any) -> list[str]:
 
 MODEL, MODEL_PATH_STR, MODEL_ERROR = _load_model()
 CONF = float(os.getenv("YOLO_CONF", "0.25"))
+MAX_PATHS = int(os.getenv("ENGINE_MAX_PATHS", "20"))
+ALLOWED_ROOTS = _resolve_allowed_roots()
+ENGINE_API_KEY = os.getenv("ENGINE_API_KEY", "").strip()
+RATE_LIMIT_RPM = int(os.getenv("ENGINE_RATE_LIMIT_RPM", "60"))
+RATE_LIMIT_WINDOW_SEC = 60.0
+RATE_LIMIT_BACKEND = os.getenv("ENGINE_RATE_LIMIT_BACKEND", "memory").strip().lower()
+RATE_LIMIT_REDIS_URL = os.getenv("ENGINE_RATE_LIMIT_REDIS_URL", "redis://redis:6379/0").strip()
+RATE_LIMIT_REDIS_PREFIX = os.getenv("ENGINE_RATE_LIMIT_REDIS_PREFIX", "buildcheck:rl").strip() or "buildcheck:rl"
+RATE_LIMIT_BUCKETS: dict[str, deque[float]] = {}
+RATE_LIMIT_LOCK = threading.Lock()
+RATE_LIMIT_CLEANUP_INTERVAL_SEC = 120.0
+RATE_LIMIT_LAST_CLEANUP = 0.0
+RATE_LIMIT_REDIS_CLIENT: Any | None = None
+RATE_LIMIT_REDIS_LOCK = threading.Lock()
+
+MIN_ENGINE_KEY_LEN = int(os.getenv("ENGINE_MIN_KEY_LEN", "24"))
+WEAK_ENGINE_KEYS = {"", "change-me", "changeme", "default", "password", "123456"}
 
 app = FastAPI(title="BuildCheck Engine", version="1.0.0")
 
 
+def _rate_limit_ok(client_key: str) -> bool:
+    if RATE_LIMIT_RPM <= 0:
+        return True
+    if RATE_LIMIT_BACKEND == "redis":
+        return _redis_rate_limit_ok(client_key)
+    return _memory_rate_limit_ok(client_key)
+
+
+def _memory_rate_limit_ok(client_key: str) -> bool:
+    now = time.monotonic()
+    window_start = now - RATE_LIMIT_WINDOW_SEC
+    with RATE_LIMIT_LOCK:
+        global RATE_LIMIT_LAST_CLEANUP
+        if now - RATE_LIMIT_LAST_CLEANUP >= RATE_LIMIT_CLEANUP_INTERVAL_SEC:
+            stale_keys: list[str] = []
+            for key, b in RATE_LIMIT_BUCKETS.items():
+                while b and b[0] < window_start:
+                    b.popleft()
+                if not b:
+                    stale_keys.append(key)
+            for key in stale_keys:
+                RATE_LIMIT_BUCKETS.pop(key, None)
+            RATE_LIMIT_LAST_CLEANUP = now
+
+        bucket = RATE_LIMIT_BUCKETS.get(client_key)
+        if bucket is None:
+            bucket = deque()
+            RATE_LIMIT_BUCKETS[client_key] = bucket
+
+        while bucket and bucket[0] < window_start:
+            bucket.popleft()
+
+        if len(bucket) >= RATE_LIMIT_RPM:
+            return False
+
+        bucket.append(now)
+        return True
+
+
+def _get_redis_client() -> Any | None:
+    global RATE_LIMIT_REDIS_CLIENT
+    if RATE_LIMIT_REDIS_CLIENT is not None:
+        return RATE_LIMIT_REDIS_CLIENT
+
+    with RATE_LIMIT_REDIS_LOCK:
+        if RATE_LIMIT_REDIS_CLIENT is not None:
+            return RATE_LIMIT_REDIS_CLIENT
+        try:
+            import redis  # type: ignore
+            RATE_LIMIT_REDIS_CLIENT = redis.from_url(RATE_LIMIT_REDIS_URL, decode_responses=True)
+            return RATE_LIMIT_REDIS_CLIENT
+        except Exception:
+            return None
+
+
+def _redis_rate_limit_ok(client_key: str) -> bool:
+    client = _get_redis_client()
+    if client is None:
+        # fallback if redis is not available/misconfigured
+        return _memory_rate_limit_ok(client_key)
+
+    key = f"{RATE_LIMIT_REDIS_PREFIX}:{client_key}"
+    try:
+        current = int(client.incr(key))
+        if current == 1:
+            client.expire(key, int(RATE_LIMIT_WINDOW_SEC) + 1)
+        return current <= RATE_LIMIT_RPM
+    except Exception:
+        return _memory_rate_limit_ok(client_key)
+
+
+def _is_engine_key_strong(key: str) -> bool:
+    if len(key) < MIN_ENGINE_KEY_LEN:
+        return False
+    if key.lower() in WEAK_ENGINE_KEYS:
+        return False
+    return True
+
+
 @app.get("/engine/health")
 def health() -> dict[str, Any]:
+    auth_configured = bool(ENGINE_API_KEY)
+    auth_strong = _is_engine_key_strong(ENGINE_API_KEY) if auth_configured else False
     payload: dict[str, Any] = {
         "ok": MODEL is not None,
         "service": "engine",
-        "model_path": MODEL_PATH_STR,
+        "model_loaded": MODEL is not None,
+        "auth_enabled": auth_configured,
+        "auth_strong": auth_strong,
+        "rate_limit_rpm": RATE_LIMIT_RPM,
+        "rate_limit_backend": RATE_LIMIT_BACKEND,
     }
+    if auth_configured and not auth_strong:
+        payload["error"] = f"ENGINE_API_KEY is weak; must be at least {MIN_ENGINE_KEY_LEN} chars"
     if MODEL_ERROR:
         payload["error"] = MODEL_ERROR
     return payload
 
 
 @app.post("/engine/analyze")
-def analyze(req: AnalyzeRequest) -> JSONResponse:
+def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = Header(default=None)) -> JSONResponse:
+    if not ENGINE_API_KEY:
+        return JSONResponse(status_code=503, content={"ok": False, "error": "engine auth not configured"})
+    if not _is_engine_key_strong(ENGINE_API_KEY):
+        return JSONResponse(status_code=503, content={"ok": False, "error": "engine auth key is weak"})
+    if x_engine_key != ENGINE_API_KEY:
+        return JSONResponse(status_code=401, content={"ok": False, "error": "unauthorized"})
+    rl_key_header = request.headers.get("X-RateLimit-Key", "")
+    client_host = request.client.host if request.client and request.client.host else "unknown"
+    rate_limit_key = rl_key_header.strip() or client_host or "unknown"
+    if len(rate_limit_key) > 128:
+        rate_limit_key = rate_limit_key[:128]
+    if not _rate_limit_ok(rate_limit_key):
+        return JSONResponse(status_code=429, content={"ok": False, "error": "rate limit exceeded"})
+
     if MODEL is None:
         return JSONResponse(status_code=500, content={"ok": False, "error": MODEL_ERROR or "model unavailable"})
 
     if not req.paths:
         return JSONResponse(status_code=400, content={"ok": False, "error": "missing paths array"})
+    if len(req.paths) > MAX_PATHS:
+        return JSONResponse(status_code=400, content={"ok": False, "error": f"too many paths (max {MAX_PATHS})"})
 
     results: list[dict[str, Any]] = []
     names = MODEL.names
 
     for raw_path in req.paths:
-        path = Path(raw_path)
-        if not path.exists():
+        path = Path(raw_path).expanduser()
+        if not _is_path_within_allowed_roots(path, ALLOWED_ROOTS):
+            results.append({"ok": False, "path": str(path), "damage_types": [], "error": "path not allowed"})
+            continue
+        if not path.exists() or not path.is_file():
             results.append({"ok": False, "path": str(path), "damage_types": [], "error": "file not found"})
             continue
 
@@ -104,7 +266,7 @@ def analyze(req: AnalyzeRequest) -> JSONResponse:
             if not ok:
                 item["error"] = "no damage detected"
             results.append(item)
-        except Exception as exc:  # pragma: no cover - runtime dependency
-            results.append({"ok": False, "path": str(path), "damage_types": [], "error": str(exc)})
+        except Exception:  # pragma: no cover - runtime dependency
+            results.append({"ok": False, "path": str(path), "damage_types": [], "error": "inference failed"})
 
     return JSONResponse(status_code=200, content={"ok": any(r.get("ok", False) for r in results), "results": results})

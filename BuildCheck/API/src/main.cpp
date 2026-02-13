@@ -9,6 +9,7 @@ int main() {
     httplib::Server server;
     const char* env_host = std::getenv("ENGINE_HOST");
     const char* env_port = std::getenv("ENGINE_PORT");
+    const char* env_key = std::getenv("ENGINE_API_KEY");
 
     std::string engine_host = (env_host && *env_host) ? env_host : "127.0.0.1";
     int engine_port = 9090;
@@ -20,7 +21,12 @@ int main() {
         }
     }
 
-    EngineClient engine(engine_host, engine_port);
+    std::string engine_api_key = (env_key && *env_key) ? env_key : "";
+    if (engine_api_key.empty()) {
+        std::cerr << "Missing required ENGINE_API_KEY environment variable.\n";
+        return 1;
+    }
+    EngineClient engine(engine_host, engine_port, engine_api_key);
 
     register_routes(server, engine);
 

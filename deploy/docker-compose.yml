@@ -14,6 +14,7 @@ services:
       - BUILDCHECK_SHARED_TMP=/shared-tmp
       - ENGINE_HOST=engine
       - ENGINE_PORT=9090
+      - ENGINE_API_KEY=${ENGINE_API_KEY:?ENGINE_API_KEY must be set}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:
@@ -28,9 +29,21 @@ services:
     image: buildcheck-engine:dev
     container_name: buildcheck_engine
     ports:
-      - "${ENGINE_PORT:-9090}:9090"
+      - "127.0.0.1:${ENGINE_PORT:-9090}:9090"
+    environment:
+      - ENGINE_API_KEY=${ENGINE_API_KEY:?ENGINE_API_KEY must be set}
+      - ENGINE_RATE_LIMIT_RPM=${ENGINE_RATE_LIMIT_RPM:-60}
+      - ENGINE_RATE_LIMIT_BACKEND=${ENGINE_RATE_LIMIT_BACKEND:-redis}
+      - ENGINE_RATE_LIMIT_REDIS_URL=${ENGINE_RATE_LIMIT_REDIS_URL:-redis://redis:6379/0}
     volumes:
       - shared-tmp:/shared-tmp
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: buildcheck_redis
+    command: ["redis-server", "--appendonly", "no"]
 
   web:
     image: nginx:1.27-alpine

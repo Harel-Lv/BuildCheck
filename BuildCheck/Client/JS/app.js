@@ -1,10 +1,7 @@
 // app.js - הלוגיקה הראשית: קורא קובץ -> שולח ל-API -> מציג תוצאה
 import { $, setStatus, setResult, showPreview } from "./ui.js";
-import { mockAnalyze } from "./mock.js";
 
-const API_URL = "http://127.0.0.1:8080/api/property/analyze";
-// אם אתה מריץ את ה-Client דרך אותו דומיין של ה-API, אפשר לעשות פשוט:
-// const API_URL = "/api/property/analyze";
+const API_URL = "/api/property/analyze";
 
 function extractDamageType(apiJson) {
   // תומך בכמה צורות JSON בלי להישבר
@@ -58,6 +55,9 @@ async function callApi({ file }) {
   }
 
   if (!res.ok) {
+    if (res.status === 422 && json && Array.isArray(json.results)) {
+      return json;
+    }
     // ה-API שלך מחזיר { ok:false, error:{message...} }
     const msg =
       (json && json.error && json.error.message) ||
@@ -105,16 +105,13 @@ function wireUi() {
         });
 
         const { damageType, details } = extractDamageType(apiJson);
-        setStatus("הניתוח הסתיים.", "ok");
+        setStatus(apiJson && apiJson.ok ? "הניתוח הסתיים." : "הניתוח הושלם ללא זיהוי נזק.", apiJson && apiJson.ok ? "ok" : "error");
         setResult({ damageType, details });
 
       } catch (err) {
-        // fallback ל-mock כדי שהדמו לא יישבר
-        console.warn("API failed, using mock:", err);
-
-        setStatus("השרת לא זמין/שגיאה. מציג תוצאה לדמו.", "error");
-        const mock = await mockAnalyze();
-        setResult({ damageType: mock.type, details: mock.details });
+        const msg = err instanceof Error ? err.message : "שגיאת שרת לא ידועה";
+        setStatus("הניתוח נכשל.", "error");
+        setResult({ damageType: "לא זוהה", details: msg });
       }
     });
   }

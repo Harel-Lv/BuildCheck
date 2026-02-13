@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <unordered_map>
 #include <iostream>
 #include <chrono>
 #include <random>
@@ -125,6 +126,39 @@ static std::string sanitize_filename(std::string name) {
     return name;
 }
 
+static std::string trim_copy(std::string s) {
+    const auto not_space = [](unsigned char c) { return !std::isspace(c); };
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), not_space));
+    s.erase(std::find_if(s.rbegin(), s.rend(), not_space).base(), s.end());
+    return s;
+}
+
+static std::string normalize_rate_limit_key(const std::string& raw, const std::string& fallback) {
+    std::string key;
+    key.reserve(raw.size());
+    for (char c : raw) {
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == ':' || c == '-' || c == '_') {
+            key.push_back(c);
+        }
+    }
+    if (key.empty()) key = fallback;
+    if (key.size() > 128) key.resize(128);
+    return key;
+}
+
+static std::string derive_rate_limit_key(const httplib::Request& req, const std::string& request_id) {
+    std::string candidate;
+    const std::string xff = req.get_header_value("X-Forwarded-For");
+    if (!xff.empty()) {
+        const auto comma = xff.find(',');
+        candidate = trim_copy(xff.substr(0, comma));
+    }
+    if (candidate.empty()) {
+        candidate = req.remote_addr;
+    }
+    return normalize_rate_limit_key(candidate, "req_" + request_id);
+}
+
 // ----------------- route -----------------
 
 void register_analyze_route(httplib::Server& server, const EngineClient& engine) {
@@ -173,15 +207,33 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
             return;
         }
 
+        std::size_t max_files = 20;
+        if (const char* env_max_files = std::getenv("BUILDCHECK_MAX_FILES"); env_max_files && *env_max_files) {
+            try {
+                max_files = std::max<std::size_t>(1, static_cast<std::size_t>(std::stoul(env_max_files)));
+            } catch (...) {
+                max_files = 20;
+            }
+        }
+        if (files.size() > max_files) {
+            send_json(res, 400, request_id,
+                      make_error_json(request_id, "TOO_MANY_FILES",
+                                      "Too many files in one request"));
+            finish_log(res.status);
+            return;
+        }
+
         AnalyzeResponse final_res;
         final_res.request_id = request_id;
         final_res.ok = false;
 
         const std::size_t max_bytes = 10 * 1024 * 1024;
 
-        struct ValidMap { std::string filename; std::size_t idx; };
+        struct ValidMap { std::string temp_path; std::size_t idx; };
         std::vector<ValidMap> valid_map;
         valid_map.reserve(files.size());
+        std::unordered_map<std::string, std::size_t> path_to_out_idx;
+        path_to_out_idx.reserve(files.size());
 
         // [CHANGE #2] collect temp file paths for engine (instead of bytes)
         std::vector<std::string> temp_paths;
@@ -272,14 +324,16 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
             final_res.results.push_back(r);
 
             // NOTE: order-based mapping (engine returns in same order)
-            valid_map.push_back({f.filename, final_res.results.size() - 1});
+            const std::size_t out_idx = final_res.results.size() - 1;
+            valid_map.push_back({tmp_path.string(), out_idx});
+            path_to_out_idx[tmp_path.string()] = out_idx;
         }
 
         // [CHANGE #3] if no valid images -> return as-is
         if (temp_paths.empty()) {
             final_res.ok = false;
             std::string body = final_res.to_json();
-            send_json(res, 200, request_id, body);
+            send_json(res, 422, request_id, body);
             finish_log(res.status);
             return;
         }
@@ -293,7 +347,8 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
                 }
             };
 
-            const std::string engine_json = engine.analyze_paths_json(request_id, temp_paths);
+            const std::string rl_key = derive_rate_limit_key(req, request_id);
+            const std::string engine_json = engine.analyze_paths_json(request_id, temp_paths, rl_key);
 
             // cleanup temp files
             cleanup_temp_files();
@@ -308,11 +363,38 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
 
             if (ej.contains("results") && ej["results"].is_array()) {
                 const auto& arr = ej["results"];
-                const size_t n = std::min({ arr.size(), temp_paths.size(), valid_map.size() });
+                std::vector<bool> filled(final_res.results.size(), false);
+                std::size_t fallback_i = 0;
 
-                for (size_t i = 0; i < n; ++i) {
-                    const auto& er = arr[i];
-                    const size_t out_idx = valid_map[i].idx;
+                for (const auto& er : arr) {
+                    bool has_out_idx = false;
+                    std::size_t out_idx = 0;
+
+                    if (er.contains("path") && er["path"].is_string()) {
+                        const std::string p = er["path"].get<std::string>();
+                        const auto it = path_to_out_idx.find(p);
+                        if (it != path_to_out_idx.end()) {
+                            out_idx = it->second;
+                            has_out_idx = true;
+                        }
+                    }
+
+                    if (!has_out_idx) {
+                        while (fallback_i < valid_map.size() && filled[valid_map[fallback_i].idx]) {
+                            ++fallback_i;
+                        }
+                        if (fallback_i < valid_map.size()) {
+                            out_idx = valid_map[fallback_i].idx;
+                            has_out_idx = true;
+                            ++fallback_i;
+                        }
+                    }
+
+                    if (!has_out_idx) {
+                        continue;
+                    }
+
+                    filled[out_idx] = true;
 
                     final_res.results[out_idx].ok = er.value("ok", false);
 
@@ -328,16 +410,34 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
                     if (final_res.results[out_idx].ok) {
                         final_res.results[out_idx].cost_min = 500;
                         final_res.results[out_idx].cost_max = 1500;
+                        final_res.results[out_idx].error.clear();
                     } else {
-                        final_res.results[out_idx].error = "Engine failed to analyze image";
+                        final_res.results[out_idx].error = er.value("error", "Engine failed to analyze image");
                     }
                 }
 
                 // Mark any not-mapped images as failed instead of keeping placeholder state.
-                for (size_t i = n; i < valid_map.size(); ++i) {
-                    const size_t out_idx = valid_map[i].idx;
-                    final_res.results[out_idx].ok = false;
-                    final_res.results[out_idx].error = "Missing engine result for image";
+                for (const auto& vm : valid_map) {
+                    if (!filled[vm.idx]) {
+                        final_res.results[vm.idx].ok = false;
+                        final_res.results[vm.idx].error = "Missing engine result for image";
+                    }
+                }
+            } else {
+                std::string engine_err = "Engine returned no results";
+                if (ej.contains("error")) {
+                    if (ej["error"].is_string()) {
+                        engine_err = ej["error"].get<std::string>();
+                    } else if (ej["error"].is_object() &&
+                               ej["error"].contains("message") &&
+                               ej["error"]["message"].is_string()) {
+                        engine_err = ej["error"]["message"].get<std::string>();
+                    }
+                }
+
+                for (const auto& vm : valid_map) {
+                    final_res.results[vm.idx].ok = false;
+                    final_res.results[vm.idx].error = engine_err;
                 }
             }
 
@@ -348,7 +448,7 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
             }
 
             std::string body = final_res.to_json();
-            send_json(res, 200, request_id, body);
+            send_json(res, final_res.ok ? 200 : 422, request_id, body);
             finish_log(res.status);
             return;
         }
