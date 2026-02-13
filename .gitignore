@@ -49,6 +49,14 @@ API/runtime/
 Engine/runtime/
 Engine/runtime/tmp/
 Engine/runtime/logs/
+BuildCheck/API/tmp/
+BuildCheck/API/runtime/
+BuildCheck/Engine/runtime/
+BuildCheck/Engine/runtime/tmp/
+BuildCheck/Engine/runtime/logs/
+BuildCheck/**/__pycache__/
+scripts/**/__pycache__/
+tests/**/__pycache__/
 
 ################################
 # Models / Weights (heavy)

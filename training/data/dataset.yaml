@@ -1,0 +1,14 @@
+# Placeholder dataset config for future training pipeline.
+# Replace with actual dataset paths and class names when training is active.
+
+path: ./data
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: crack
+  1: leakage
+  2: corrosion
+  3: abscission
+  4: bulge

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://buildcheck.local/contracts/schemas/analyze_response.schema.json",
+  "title": "AnalyzeResponse",
+  "type": "object",
+  "properties": {
+    "ok": { "type": "boolean" },
+    "request_id": { "type": "string" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "damage_types": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "cost_min": { "type": "integer" },
+          "cost_max": { "type": "integer" },
+          "error": { "type": "string" }
+        },
+        "required": ["filename", "ok"],
+        "additionalProperties": true
+      }
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["ok", "request_id"],
+  "anyOf": [
+    {
+      "required": ["results"]
+    },
+    {
+      "required": ["error"]
+    }
+  ],
+  "additionalProperties": false
+}

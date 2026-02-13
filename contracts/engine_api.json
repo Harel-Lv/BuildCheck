@@ -1,0 +1,38 @@
+{
+  "service": "engine",
+  "version": "0.1.0",
+  "endpoints": {
+    "health": {
+      "method": "GET",
+      "path": "/engine/health"
+    },
+    "analyze": {
+      "method": "POST",
+      "path": "/engine/analyze",
+      "request": {
+        "contentType": "application/json",
+        "shape": {
+          "request_id": "string",
+          "paths": ["string"]
+        }
+      },
+      "response": {
+        "contentType": "application/json",
+        "shape": {
+          "ok": "boolean",
+          "results": [
+            {
+              "ok": "boolean",
+              "path": "string",
+              "damage_types": ["string"]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "notes": [
+    "Current engine runtime is FastAPI + Ultralytics YOLO (engine_service.py).",
+    "Paths must point to files accessible on the engine host filesystem (or shared volume in containers)."
+  ]
+}

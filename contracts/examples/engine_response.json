@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "ok": true,
+      "path": "tmp/req_demo_001_0_front.jpg",
+      "damage_types": ["crack"]
+    },
+    {
+      "ok": true,
+      "path": "tmp/req_demo_001_1_wall.png",
+      "damage_types": ["leakage"]
+    }
+  ]
+}

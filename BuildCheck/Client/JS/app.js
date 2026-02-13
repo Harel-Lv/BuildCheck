@@ -2,9 +2,9 @@
 import { $, setStatus, setResult, showPreview } from "./ui.js";
 import { mockAnalyze } from "./mock.js";
 
-const API_URL = "http://127.0.0.1:8080/api/accident/analyze";
+const API_URL = "http://127.0.0.1:8080/api/property/analyze";
 // אם אתה מריץ את ה-Client דרך אותו דומיין של ה-API, אפשר לעשות פשוט:
-// const API_URL = "/api/accident/analyze";
+// const API_URL = "/api/property/analyze";
 
 function extractDamageType(apiJson) {
   // תומך בכמה צורות JSON בלי להישבר
@@ -38,16 +38,10 @@ function extractDamageType(apiJson) {
   return { damageType, details };
 }
 
-async function callApi({ file, vehicleType, year }) {
+async function callApi({ file }) {
   const fd = new FormData();
   // ה-API שלך מחפש "images" כ-file field
   fd.append("images", file, file.name);
-
-  // לפי ה-API שלך יש שדות חובה vehicle_type + year.
-  // ב-UI אמרנו "אופציונלי", אבל בפועל השרת שלך יחזיר 400 אם חסר.
-  // לכן פה: אם לא הוזן, נשים ערכי ברירת מחדל כדי שלא ייפול.
-  fd.append("vehicle_type", vehicleType?.trim() || "Building");
-  fd.append("year", String(year || 2024));
 
   const res = await fetch(API_URL, {
     method: "POST",
@@ -95,8 +89,6 @@ function wireUi() {
   if (analyzeBtn) {
     analyzeBtn.addEventListener("click", async () => {
       const f = fileInput && fileInput.files && fileInput.files[0];
-      const vehicleType = $("vehicleType")?.value || "";
-      const yearVal = parseInt($("year")?.value || "", 10);
 
       if (!f) {
         setStatus("בחר תמונה לפני ניתוח.", "error");
@@ -110,8 +102,6 @@ function wireUi() {
       try {
         const apiJson = await callApi({
           file: f,
-          vehicleType,
-          year: Number.isFinite(yearVal) ? yearVal : 2024,
         });
 
         const { damageType, details } = extractDamageType(apiJson);

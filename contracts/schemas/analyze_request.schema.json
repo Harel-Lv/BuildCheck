@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://buildcheck.local/contracts/schemas/analyze_request.schema.json",
+  "title": "AnalyzeRequestMultipart",
+  "type": "object",
+  "properties": {
+    "images": {
+      "description": "Single file or multiple files under the same multipart key",
+      "oneOf": [
+        {
+          "type": "string",
+          "contentEncoding": "binary"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "contentEncoding": "binary"
+          },
+          "minItems": 1
+        }
+      ]
+    }
+  },
+  "required": ["images"],
+  "additionalProperties": false
+}

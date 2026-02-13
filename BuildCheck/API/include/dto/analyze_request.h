@@ -9,7 +9,5 @@ struct AnalyzeImageInput {
 };
 
 struct AnalyzeRequest {
-    std::string vehicle_type;
-    int year = 0;
     std::vector<AnalyzeImageInput> images;
 };

@@ -1,0 +1,47 @@
+version: "3.9"
+
+# Compose for local integration.
+# API/Engine images are built from source via `build:`.
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: BuildCheck/API/Dockerfile
+    image: buildcheck-api:dev
+    container_name: buildcheck_api
+    environment:
+      - BUILDCHECK_SHARED_TMP=/shared-tmp
+      - ENGINE_HOST=engine
+      - ENGINE_PORT=9090
+    ports:
+      - "${API_PORT:-8080}:8080"
+    volumes:
+      - shared-tmp:/shared-tmp
+    depends_on:
+      - engine
+
+  engine:
+    build:
+      context: ..
+      dockerfile: BuildCheck/Engine/Dockerfile
+    image: buildcheck-engine:dev
+    container_name: buildcheck_engine
+    ports:
+      - "${ENGINE_PORT:-9090}:9090"
+    volumes:
+      - shared-tmp:/shared-tmp
+
+  web:
+    image: nginx:1.27-alpine
+    container_name: buildcheck_web
+    ports:
+      - "${CLIENT_PORT:-8081}:80"
+    volumes:
+      - ../BuildCheck/Client:/usr/share/nginx/html:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+
+volumes:
+  shared-tmp:

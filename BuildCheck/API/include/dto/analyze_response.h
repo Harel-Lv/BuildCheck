@@ -18,8 +18,7 @@ struct AnalyzeImageResult {
 
 struct AnalyzeResponse {
     bool ok = false;
-    std::string vehicle_type;
-    int year = 0;
+    std::string request_id;
     std::vector<AnalyzeImageResult> results;
 
     // Minimal JSON builder (no external JSON lib)
@@ -42,8 +41,7 @@ struct AnalyzeResponse {
     std::string to_json() const {
         std::ostringstream os;
         os << R"({"ok":)" << (ok ? "true" : "false")
-           << R"(,"vehicle_type":")" << escape_json(vehicle_type) << R"(")"
-           << R"(,"year":)" << year
+           << R"(,"request_id":")" << escape_json(request_id) << R"(")"
            << R"(,"results":[)";
 
         for (size_t i = 0; i < results.size(); ++i) {
