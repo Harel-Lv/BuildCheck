@@ -31,6 +31,18 @@ Analyze request requires image files only (`images`).
 
 ## Local Run (Manual)
 
+Set a strong engine key before starting services:
+
+```bash
+export ENGINE_API_KEY='replace-with-32-plus-char-secret'
+```
+
+PowerShell:
+
+```powershell
+$env:ENGINE_API_KEY='replace-with-32-plus-char-secret'
+```
+
 1. Run Engine (`9090`).
 2. Run API (`8080`).
 3. Open `BuildCheck/Client/html/index.html` in a browser or serve the `BuildCheck/Client` folder.

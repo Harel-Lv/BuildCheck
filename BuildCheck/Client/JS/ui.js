@@ -4,6 +4,8 @@ export function $(id) {
   return document.getElementById(id);
 }
 
+let currentPreviewUrl = null;
+
 export function setText(id, text) {
   const el = $(id);
   if (el) el.textContent = text;
@@ -25,6 +27,11 @@ export function showPreview(file) {
   const img = $("previewImg");
   if (!box || !img) return;
 
+  if (currentPreviewUrl) {
+    URL.revokeObjectURL(currentPreviewUrl);
+    currentPreviewUrl = null;
+  }
+
   if (!file) {
     box.style.display = "none";
     img.src = "";
@@ -33,12 +40,18 @@ export function showPreview(file) {
   }
 
   const url = URL.createObjectURL(file);
+  currentPreviewUrl = url;
   img.src = url;
   box.style.display = "block";
   box.setAttribute("aria-hidden", "false");
 
   // שחרור URL כשמחליפים תמונה
-  img.onload = () => URL.revokeObjectURL(url);
+  img.onload = () => {
+    if (currentPreviewUrl === url) {
+      URL.revokeObjectURL(url);
+      currentPreviewUrl = null;
+    }
+  };
 }
 
 export function setResult({ damageType = "—", details = "—" }) {

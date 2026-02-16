@@ -53,15 +53,26 @@ static void send_json(httplib::Response& res, int status, const std::string& req
 
 static std::string json_escape(const std::string& s) {
     std::string out;
-    out.reserve(s.size());
-    for (char c : s) {
+    out.reserve(s.size() + 8);
+    const char* hex = "0123456789abcdef";
+    for (unsigned char c : s) {
         switch (c) {
             case '\\': out += "\\\\"; break;
             case '"':  out += "\\\""; break;
             case '\n': out += "\\n"; break;
             case '\r': out += "\\r"; break;
             case '\t': out += "\\t"; break;
-            default:   out += c; break;
+            case '\b': out += "\\b"; break;
+            case '\f': out += "\\f"; break;
+            default:
+                if (c < 0x20) {
+                    out += "\\u00";
+                    out += hex[(c >> 4) & 0x0F];
+                    out += hex[c & 0x0F];
+                } else {
+                    out += static_cast<char>(c);
+                }
+                break;
         }
     }
     return out;
@@ -74,6 +85,23 @@ static std::string make_error_json(const std::string& request_id,
     os << R"({"ok":false,"request_id":")" << json_escape(request_id) << R"(","error":{"code":")"
        << json_escape(code) << R"(","message":")" << json_escape(message) << R"("}})";
     return os.str();
+}
+
+static std::string extract_engine_error_message(const EngineClientError& e) {
+    if (e.response_body().empty()) return "Engine request failed";
+    nlohmann::json ej = nlohmann::json::parse(e.response_body(), nullptr, false);
+    if (ej.is_discarded()) return "Engine request failed";
+    if (ej.contains("error")) {
+        if (ej["error"].is_string()) {
+            return ej["error"].get<std::string>();
+        }
+        if (ej["error"].is_object() &&
+            ej["error"].contains("message") &&
+            ej["error"]["message"].is_string()) {
+            return ej["error"]["message"].get<std::string>();
+        }
+    }
+    return "Engine request failed";
 }
 
 // ----------------- validation helpers -----------------
@@ -146,12 +174,21 @@ static std::string normalize_rate_limit_key(const std::string& raw, const std::s
     return key;
 }
 
+static bool trust_proxy_headers() {
+    const char* env = std::getenv("BUILDCHECK_TRUST_PROXY_HEADERS");
+    if (!env || !*env) return false;
+    const std::string v = to_lower(trim_copy(env));
+    return (v == "1" || v == "true" || v == "yes" || v == "on");
+}
+
 static std::string derive_rate_limit_key(const httplib::Request& req, const std::string& request_id) {
     std::string candidate;
-    const std::string xff = req.get_header_value("X-Forwarded-For");
-    if (!xff.empty()) {
-        const auto comma = xff.find(',');
-        candidate = trim_copy(xff.substr(0, comma));
+    if (trust_proxy_headers()) {
+        const std::string xff = req.get_header_value("X-Forwarded-For");
+        if (!xff.empty()) {
+            const auto comma = xff.find(',');
+            candidate = trim_copy(xff.substr(0, comma));
+        }
     }
     if (candidate.empty()) {
         candidate = req.remote_addr;
@@ -250,7 +287,7 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
         } catch (const std::exception& e) {
             send_json(res, 500, request_id,
                       make_error_json(request_id, "INTERNAL_ERROR",
-                                      std::string("Failed to resolve temp directory: ") + e.what()));
+                                      "Failed to resolve temp directory"));
             finish_log(res.status);
             return;
         }
@@ -452,13 +489,27 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
             finish_log(res.status);
             return;
         }
+        catch (const EngineClientError& e) {
+            for (const auto& p : temp_paths) {
+                std::error_code rm_ec;
+                std::filesystem::remove(p, rm_ec);
+            }
+            int status = e.status_code();
+            if (status < 400 || status > 599) status = 502;
+            const std::string msg = extract_engine_error_message(e);
+            send_json(res, status, request_id,
+                      make_error_json(request_id, "ENGINE_ERROR", msg));
+            finish_log(res.status);
+            return;
+        }
         catch (const std::exception& e) {
             for (const auto& p : temp_paths) {
                 std::error_code rm_ec;
                 std::filesystem::remove(p, rm_ec);
             }
+            std::cerr << "[REQ " << request_id << "] INTERNAL_ERROR: " << e.what() << "\n";
             send_json(res, 500, request_id,
-                      make_error_json(request_id, "INTERNAL_ERROR", e.what()));
+                      make_error_json(request_id, "INTERNAL_ERROR", "Internal server error"));
             finish_log(res.status);
             return;
         }

@@ -21,3 +21,15 @@
 ## Important Note
 
 `Engine/src/routes/analyze_route.cpp` is a stub. For real detection, run `Engine/engine_service.py` (FastAPI + Ultralytics YOLO) on port `9090`.
+
+## Required Environment
+
+API-to-Engine calls require `ENGINE_API_KEY` on both services.
+Use a strong key (32+ chars) and set it consistently before running locally.
+
+## Contact Admin Page
+
+- Public form posts to `POST /api/contact`.
+- Admin-only list is `GET /api/admin/contact/submissions` with header `X-Admin-Token`.
+- Configure token with `BUILDCHECK_CONTACT_ADMIN_TOKEN`.
+- Client admin page path: `BuildCheck/Client/html/admin-contacts.html`.

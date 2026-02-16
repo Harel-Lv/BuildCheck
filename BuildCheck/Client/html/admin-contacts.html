@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BuildCheck | ניהול פניות</title>
+  <link rel="stylesheet" href="../CSS/style.css?v=20260216a" />
+</head>
+<body>
+  <section class="section">
+    <div class="container">
+      <header class="section__head">
+        <h2>ניהול פניות יצירת קשר</h2>
+        <p>הזן טוקן אדמין כדי לראות את כל הנרשמים.</p>
+      </header>
+
+      <div class="contact">
+        <form class="card contact__form" id="adminForm">
+          <div class="field">
+            <label for="adminToken">טוקן אדמין</label>
+            <input id="adminToken" type="password" placeholder="הדבק כאן את הטוקן" />
+          </div>
+          <button class="btn btn--primary" type="submit" id="adminLoadBtn">טען פניות</button>
+          <p class="muted" id="adminStatus" data-kind="idle">ממתין לטוקן…</p>
+        </form>
+
+        <aside class="card contact__info">
+          <h3>כל הפניות</h3>
+          <ul id="adminContactList" class="contact-log"></ul>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="../JS/admin-contacts.js"></script>
+
+  <a
+    class="whatsapp-fab"
+    href="https://wa.me/972500000000?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%95%D7%A6%D7%94%20%D7%9C%D7%99%D7%A6%D7%95%D7%A8%20%D7%A7%D7%A9%D7%A8"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="צור קשר בוואטסאפ"
+    title="צור קשר בוואטסאפ">
+    <span class="whatsapp-fab__icon" aria-hidden="true">✆</span>
+    <span class="whatsapp-fab__label">יצירת קשר</span>
+  </a>
+</body>
+</html>

@@ -21,6 +21,38 @@ class AnalyzeRequest(BaseModel):
     paths: list[str] = Field(default_factory=list)
 
 
+def _env_int(name: str, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        value = default
+    else:
+        try:
+            value = int(raw)
+        except Exception:
+            value = default
+    if minimum is not None and value < minimum:
+        value = minimum
+    if maximum is not None and value > maximum:
+        value = maximum
+    return value
+
+
+def _env_float(name: str, default: float, minimum: float | None = None, maximum: float | None = None) -> float:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        value = default
+    else:
+        try:
+            value = float(raw)
+        except Exception:
+            value = default
+    if minimum is not None and value < minimum:
+        value = minimum
+    if maximum is not None and value > maximum:
+        value = maximum
+    return value
+
+
 def _resolve_allowed_roots() -> list[Path]:
     raw = os.getenv("ENGINE_ALLOWED_ROOTS", "").strip()
     if not raw:
@@ -101,11 +133,11 @@ def _extract_damage_types(result: Any, names: Any) -> list[str]:
 
 
 MODEL, MODEL_PATH_STR, MODEL_ERROR = _load_model()
-CONF = float(os.getenv("YOLO_CONF", "0.25"))
-MAX_PATHS = int(os.getenv("ENGINE_MAX_PATHS", "20"))
+CONF = _env_float("YOLO_CONF", 0.25, minimum=0.0, maximum=1.0)
+MAX_PATHS = _env_int("ENGINE_MAX_PATHS", 20, minimum=1, maximum=200)
 ALLOWED_ROOTS = _resolve_allowed_roots()
 ENGINE_API_KEY = os.getenv("ENGINE_API_KEY", "").strip()
-RATE_LIMIT_RPM = int(os.getenv("ENGINE_RATE_LIMIT_RPM", "60"))
+RATE_LIMIT_RPM = _env_int("ENGINE_RATE_LIMIT_RPM", 60, minimum=0, maximum=10000)
 RATE_LIMIT_WINDOW_SEC = 60.0
 RATE_LIMIT_BACKEND = os.getenv("ENGINE_RATE_LIMIT_BACKEND", "memory").strip().lower()
 RATE_LIMIT_REDIS_URL = os.getenv("ENGINE_RATE_LIMIT_REDIS_URL", "redis://redis:6379/0").strip()
@@ -117,7 +149,7 @@ RATE_LIMIT_LAST_CLEANUP = 0.0
 RATE_LIMIT_REDIS_CLIENT: Any | None = None
 RATE_LIMIT_REDIS_LOCK = threading.Lock()
 
-MIN_ENGINE_KEY_LEN = int(os.getenv("ENGINE_MIN_KEY_LEN", "24"))
+MIN_ENGINE_KEY_LEN = _env_int("ENGINE_MIN_KEY_LEN", 24, minimum=8, maximum=256)
 WEAK_ENGINE_KEYS = {"", "change-me", "changeme", "default", "password", "123456"}
 
 app = FastAPI(title="BuildCheck Engine", version="1.0.0")

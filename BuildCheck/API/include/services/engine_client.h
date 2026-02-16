@@ -1,6 +1,22 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <stdexcept>
+
+class EngineClientError : public std::runtime_error {
+public:
+    EngineClientError(std::string message, int status_code = 500, std::string response_body = "")
+        : std::runtime_error(std::move(message)),
+          status_code_(status_code),
+          response_body_(std::move(response_body)) {}
+
+    int status_code() const noexcept { return status_code_; }
+    const std::string& response_body() const noexcept { return response_body_; }
+
+private:
+    int status_code_;
+    std::string response_body_;
+};
 
 class EngineClient {
 public:

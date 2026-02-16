@@ -12,9 +12,12 @@ services:
     container_name: buildcheck_api
     environment:
       - BUILDCHECK_SHARED_TMP=/shared-tmp
+      - BUILDCHECK_TRUST_PROXY_HEADERS=1
       - ENGINE_HOST=engine
       - ENGINE_PORT=9090
       - ENGINE_API_KEY=${ENGINE_API_KEY:?ENGINE_API_KEY must be set}
+      - BUILDCHECK_CONTACT_ADMIN_TOKEN=${BUILDCHECK_CONTACT_ADMIN_TOKEN:?BUILDCHECK_CONTACT_ADMIN_TOKEN must be set}
+      - BUILDCHECK_CONTACT_DB_PATH=${BUILDCHECK_CONTACT_DB_PATH:-/shared-tmp/contact_submissions.json}
     ports:
       - "${API_PORT:-8080}:8080"
     volumes:

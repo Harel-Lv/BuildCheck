@@ -23,9 +23,9 @@ std::string EngineClient::analyze_paths_json(const std::string& request_id,
     }
 
     auto r = cli.Post("/engine/analyze", headers, payload.dump(), "application/json");
-    if (!r) throw std::runtime_error("ENGINE_UNREACHABLE");
+    if (!r) throw EngineClientError("ENGINE_UNREACHABLE", 503);
     if (r->status != 200) {
-        throw std::runtime_error("ENGINE_BAD_STATUS status=" + std::to_string(r->status));
+        throw EngineClientError("ENGINE_BAD_STATUS", r->status, r->body);
     }
 
     return r->body;

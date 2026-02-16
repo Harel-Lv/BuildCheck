@@ -42,7 +42,7 @@ def _build_multipart(image_path: Path) -> tuple[bytes, str]:
     return b"".join(parts), boundary
 
 
-def _post_analyze(image_path: Path) -> dict:
+def _post_analyze(image_path: Path) -> tuple[int, dict]:
     body, boundary = _build_multipart(image_path)
     req = request.Request(
         f"{API_BASE}/api/property/analyze",
@@ -50,8 +50,16 @@ def _post_analyze(image_path: Path) -> dict:
         method="POST",
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
     )
-    with request.urlopen(req, timeout=120) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with request.urlopen(req, timeout=120) as resp:
+            return resp.getcode(), json.loads(resp.read().decode("utf-8"))
+    except error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")
+        try:
+            payload = json.loads(body)
+        except Exception:
+            payload = {"ok": False, "error": {"code": "HTTP_ERROR", "message": body}}
+        return exc.code, payload
 
 
 def _validate_analyze_payload(payload: dict) -> None:
@@ -105,7 +113,9 @@ def main() -> int:
         return 2
 
     try:
-        payload = _post_analyze(image_path)
+        status, payload = _post_analyze(image_path)
+        if status not in (200, 422):
+            raise RuntimeError(f"unexpected analyze status: {status}")
         _validate_analyze_payload(payload)
     except Exception as exc:
         print(f"[e2e] analyze failed: {exc}")

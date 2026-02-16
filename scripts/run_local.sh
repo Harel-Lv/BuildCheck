@@ -5,6 +5,12 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_BUILD="$ROOT_DIR/BuildCheck/API/build"
 ENGINE_DIR="$ROOT_DIR/BuildCheck/Engine"
 
+if [[ -z "${ENGINE_API_KEY:-}" ]]; then
+  ENGINE_API_KEY="local-dev-engine-key-please-change-123456"
+  export ENGINE_API_KEY
+  echo "[run] ENGINE_API_KEY not set; using local dev fallback key."
+fi
+
 if [[ ! -x "$API_BUILD/api_server" && ! -x "$API_BUILD/Release/api_server.exe" ]]; then
   echo "[run] API binary not found. Run scripts/build_all.sh first."
   exit 1

@@ -24,15 +24,26 @@ struct AnalyzeResponse {
     // Minimal JSON builder (no external JSON lib)
     static std::string escape_json(const std::string& s) {
         std::string out;
-        out.reserve(s.size());
-        for (char c : s) {
+        out.reserve(s.size() + 8);
+        const char* hex = "0123456789abcdef";
+        for (unsigned char c : s) {
             switch (c) {
                 case '\\': out += "\\\\"; break;
                 case '"':  out += "\\\""; break;
                 case '\n': out += "\\n"; break;
                 case '\r': out += "\\r"; break;
                 case '\t': out += "\\t"; break;
-                default:   out += c; break;
+                case '\b': out += "\\b"; break;
+                case '\f': out += "\\f"; break;
+                default:
+                    if (c < 0x20) {
+                        out += "\\u00";
+                        out += hex[(c >> 4) & 0x0F];
+                        out += hex[c & 0x0F];
+                    } else {
+                        out += static_cast<char>(c);
+                    }
+                    break;
             }
         }
         return out;

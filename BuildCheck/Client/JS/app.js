@@ -1,11 +1,33 @@
-// app.js - הלוגיקה הראשית: קורא קובץ -> שולח ל-API -> מציג תוצאה
 import { $, setStatus, setResult, showPreview } from "./ui.js";
 
-const API_URL = "/api/property/analyze";
+function resolveAnalyzeApiUrl() {
+  if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_URL === "string" && window.BUILDCHECK_API_URL.trim()) {
+    return window.BUILDCHECK_API_URL.trim();
+  }
+  if (window.location.protocol === "file:") {
+    return "http://127.0.0.1:8080/api/property/analyze";
+  }
+  return "/api/property/analyze";
+}
+
+function resolveApiBase() {
+  if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_BASE === "string" && window.BUILDCHECK_API_BASE.trim()) {
+    return window.BUILDCHECK_API_BASE.trim().replace(/\/$/, "");
+  }
+  if (window.location.protocol === "file:") {
+    return "http://127.0.0.1:8080";
+  }
+  return "";
+}
+
+const ANALYZE_API_URL = resolveAnalyzeApiUrl();
+const API_BASE = resolveApiBase();
+const CONTACT_POST_URL = API_BASE ? `${API_BASE}/api/contact` : "/api/contact";
+
+let analyzeInFlight = false;
+let contactInFlight = false;
 
 function extractDamageType(apiJson) {
-  // תומך בכמה צורות JSON בלי להישבר
-  // צורה צפויה אצלך: { ok: true/false, results: [ { damage_types: [...] } ] }
   if (!apiJson || typeof apiJson !== "object") {
     return { damageType: "לא זוהה", details: "תגובה לא תקינה מהשרת." };
   }
@@ -15,32 +37,43 @@ function extractDamageType(apiJson) {
     return { damageType: "לא זוהה", details: "אין results בתגובה." };
   }
 
-  // ניקח את התמונה הראשונה
-  const r0 = results[0] || {};
+  const allTypes = [];
+  const seen = new Set();
+  let firstError = "";
+  let okCount = 0;
 
-  const types = Array.isArray(r0.damage_types) ? r0.damage_types : [];
-  if (types.length === 0) {
+  for (const item of results) {
+    if (item && item.ok) okCount += 1;
+    if (!firstError && item && typeof item.error === "string") firstError = item.error;
+    const itemTypes = Array.isArray(item && item.damage_types) ? item.damage_types : [];
+    for (const t of itemTypes) {
+      const key = String(t);
+      if (!seen.has(key)) {
+        seen.add(key);
+        allTypes.push(key);
+      }
+    }
+  }
+
+  if (allTypes.length === 0) {
     return {
-      damageType: r0.ok ? "לא זוהה" : "לא זוהה",
-      details: r0.error || "לא התקבלו סוגי נזק מהמערכת.",
+      damageType: "לא זוהה",
+      details: firstError || "לא התקבלו סוגי נזק מהמערכת.",
     };
   }
 
-  // מציגים סוג ראשון + שאר כסיכום
-  const damageType = String(types[0]);
-  const extra = types.slice(1).map(String);
-  const details =
-    extra.length > 0 ? `נמצאו גם: ${extra.join(", ")}` : "זוהה סוג נזק אחד.";
+  const damageType = allTypes[0];
+  const extra = allTypes.slice(1);
+  const details = `${okCount}/${results.length} תמונות זוהו. ${extra.length > 0 ? `נמצאו גם: ${extra.join(", ")}` : ""}`.trim();
 
   return { damageType, details };
 }
 
-async function callApi({ file }) {
+async function callAnalyzeApi(file) {
   const fd = new FormData();
-  // ה-API שלך מחפש "images" כ-file field
   fd.append("images", file, file.name);
 
-  const res = await fetch(API_URL, {
+  const res = await fetch(ANALYZE_API_URL, {
     method: "POST",
     body: fd,
   });
@@ -50,7 +83,6 @@ async function callApi({ file }) {
   try {
     json = JSON.parse(text);
   } catch {
-    // אם השרת מחזיר משהו שהוא לא JSON
     throw new Error(`Server returned non-JSON (status ${res.status})`);
   }
 
@@ -58,25 +90,22 @@ async function callApi({ file }) {
     if (res.status === 422 && json && Array.isArray(json.results)) {
       return json;
     }
-    // ה-API שלך מחזיר { ok:false, error:{message...} }
-    const msg =
-      (json && json.error && json.error.message) ||
-      `HTTP ${res.status}`;
+    const msg = (json && json.error && json.error.message) || `HTTP ${res.status}`;
     throw new Error(msg);
   }
 
   return json;
 }
 
-function wireUi() {
+function wireAnalyzeUi() {
   const fileInput = $("damageImage");
   const analyzeBtn = $("analyzeBtn");
 
   if (fileInput) {
     fileInput.addEventListener("change", () => {
-      const f = fileInput.files && fileInput.files[0];
-      showPreview(f || null);
-      if (f) {
+      const file = fileInput.files && fileInput.files[0];
+      showPreview(file || null);
+      if (file) {
         setStatus("תמונה נבחרה. לחץ על 'ניתוח תמונה'.", "idle");
         setResult({ damageType: "—", details: "—" });
       } else {
@@ -88,33 +117,103 @@ function wireUi() {
 
   if (analyzeBtn) {
     analyzeBtn.addEventListener("click", async () => {
-      const f = fileInput && fileInput.files && fileInput.files[0];
+      if (analyzeInFlight) return;
+      const file = fileInput && fileInput.files && fileInput.files[0];
 
-      if (!f) {
+      if (!file) {
         setStatus("בחר תמונה לפני ניתוח.", "error");
         setResult({ damageType: "—", details: "לא נבחר קובץ." });
         return;
       }
 
+      analyzeInFlight = true;
+      analyzeBtn.disabled = true;
       setStatus("מנתח…", "loading");
-      setResult({ damageType: "—", details: "שולח לשרת…" });
+      setResult({ damageType: "—", details: "שולח תמונה לשרת…" });
 
       try {
-        const apiJson = await callApi({
-          file: f,
-        });
-
+        const apiJson = await callAnalyzeApi(file);
         const { damageType, details } = extractDamageType(apiJson);
         setStatus(apiJson && apiJson.ok ? "הניתוח הסתיים." : "הניתוח הושלם ללא זיהוי נזק.", apiJson && apiJson.ok ? "ok" : "error");
         setResult({ damageType, details });
-
       } catch (err) {
         const msg = err instanceof Error ? err.message : "שגיאת שרת לא ידועה";
         setStatus("הניתוח נכשל.", "error");
         setResult({ damageType: "לא זוהה", details: msg });
+      } finally {
+        analyzeInFlight = false;
+        analyzeBtn.disabled = false;
       }
     });
   }
 }
 
-document.addEventListener("DOMContentLoaded", wireUi);
+function setContactStatus(text, kind = "idle") {
+  const el = $("contactStatus");
+  if (!el) return;
+  el.textContent = text;
+  el.dataset.kind = kind;
+}
+
+function validateContactInput(name, phone, message) {
+  if (name.length < 2 || name.length > 80) return "שם חייב להיות בין 2 ל-80 תווים.";
+  if (!/^\+?[0-9()\-\s]{7,20}$/.test(phone)) return "פורמט טלפון לא תקין.";
+  if (message.length < 5 || message.length > 2000) return "הודעה חייבת להיות בין 5 ל-2000 תווים.";
+  return "";
+}
+
+function wireContactForm() {
+  const form = $("contactForm");
+  const nameInput = $("contactName");
+  const phoneInput = $("contactPhone");
+  const messageInput = $("contactMessage");
+  const submitBtn = $("contactSubmitBtn");
+
+  if (!form || !nameInput || !phoneInput || !messageInput || !submitBtn) return;
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (contactInFlight) return;
+
+    const name = String(nameInput.value || "").trim();
+    const phone = String(phoneInput.value || "").trim();
+    const message = String(messageInput.value || "").trim();
+
+    const err = validateContactInput(name, phone, message);
+    if (err) {
+      setContactStatus(err, "error");
+      return;
+    }
+
+    contactInFlight = true;
+    submitBtn.disabled = true;
+    setContactStatus("שומר פרטים…", "loading");
+
+    try {
+      const res = await fetch(CONTACT_POST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phone, message }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data || data.ok !== true) {
+        const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+
+      form.reset();
+      setContactStatus("הפרטים נשמרו בהצלחה.", "ok");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "שגיאה בשמירת פרטים";
+      setContactStatus(msg, "error");
+    } finally {
+      contactInFlight = false;
+      submitBtn.disabled = false;
+    }
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  wireAnalyzeUi();
+  wireContactForm();
+});
