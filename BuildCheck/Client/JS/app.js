@@ -1,20 +1,44 @@
 import { $, setStatus, setResult, showPreview } from "./ui.js";
 
+function resolveApiBaseFromParams() {
+  try {
+    const url = new URL(window.location.href);
+    const q = String(url.searchParams.get("api_base") || "").trim();
+    if (q) return q.replace(/\/$/, "");
+  } catch {
+  }
+  return "";
+}
+
 function resolveAnalyzeApiUrl() {
+  const fromParams = resolveApiBaseFromParams();
+  if (fromParams) return `${fromParams}/api/property/analyze`;
   if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_URL === "string" && window.BUILDCHECK_API_URL.trim()) {
     return window.BUILDCHECK_API_URL.trim();
   }
   if (window.location.protocol === "file:") {
+    try {
+      const saved = String(localStorage.getItem("buildcheck_api_base") || "").trim();
+      if (saved) return `${saved.replace(/\/$/, "")}/api/property/analyze`;
+    } catch {
+    }
     return "http://127.0.0.1:8080/api/property/analyze";
   }
   return "/api/property/analyze";
 }
 
 function resolveApiBase() {
+  const fromParams = resolveApiBaseFromParams();
+  if (fromParams) return fromParams;
   if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_BASE === "string" && window.BUILDCHECK_API_BASE.trim()) {
     return window.BUILDCHECK_API_BASE.trim().replace(/\/$/, "");
   }
   if (window.location.protocol === "file:") {
+    try {
+      const saved = String(localStorage.getItem("buildcheck_api_base") || "").trim();
+      if (saved) return saved.replace(/\/$/, "");
+    } catch {
+    }
     return "http://127.0.0.1:8080";
   }
   return "";

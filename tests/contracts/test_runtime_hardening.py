@@ -34,6 +34,21 @@ def test_api_error_response_does_not_expose_internal_exception_message():
     assert "Failed to resolve temp directory: " not in source
 
 
+def test_api_startup_hardening_for_key_strength_and_payload_limit():
+    source = _read_text("BuildCheck/API/src/main.cpp")
+    assert "is_engine_key_strong" in source
+    assert "ENGINE_MIN_KEY_LEN" in source
+    assert "server.set_payload_max_length" in source
+    assert "BUILDCHECK_PAYLOAD_MAX_BYTES" in source
+
+
+def test_api_analyze_route_hardening_for_temp_files_and_file_count_cap():
+    source = _read_text("BuildCheck/API/src/routes/analyze_route.cpp")
+    assert "kMaxFilesHardCap" in source
+    assert "out.flush()" in source
+    assert "file_size(tmp_path" in source
+
+
 def test_engine_env_parsing_is_hardened():
     source = _read_text("BuildCheck/Engine/engine_service.py")
     assert "def _env_int(" in source
@@ -41,6 +56,12 @@ def test_engine_env_parsing_is_hardened():
     assert 'RATE_LIMIT_RPM = _env_int("ENGINE_RATE_LIMIT_RPM"' in source
     assert 'MAX_PATHS = _env_int("ENGINE_MAX_PATHS"' in source
     assert 'CONF = _env_float("YOLO_CONF"' in source
+
+
+def test_cpp_engine_stub_is_disabled_by_default():
+    source = _read_text("BuildCheck/Engine/src/main.cpp")
+    assert "ALLOW_CPP_ENGINE_STUB" in source
+    assert "stub runtime is disabled by default" in source
 
 
 def test_engine_status_is_propagated_back_to_client():
@@ -56,11 +77,21 @@ def test_compose_enables_trusted_proxy_headers():
     assert "BUILDCHECK_TRUST_PROXY_HEADERS=1" in compose
 
 
-def test_contact_admin_endpoint_is_token_protected_and_persistent():
+def test_compose_requires_critical_admin_envs():
+    compose = _read_text("deploy/docker-compose.yml")
+    assert "BUILDCHECK_ADMIN_ALLOWED_ORIGINS=${BUILDCHECK_ADMIN_ALLOWED_ORIGINS:?" in compose
+    assert "BUILDCHECK_CONTACT_DB_PATH=${BUILDCHECK_CONTACT_DB_PATH:?" in compose
+    assert "BUILDCHECK_ADMIN_SESSION_DB_PATH=${BUILDCHECK_ADMIN_SESSION_DB_PATH:?" in compose
+
+
+def test_contact_admin_endpoint_is_auth_protected_and_persistent():
     source = _read_text("BuildCheck/API/src/routes/register_routes.cpp")
     assert '/api/admin/contact/submissions' in source
+    assert '/api/admin/login' in source
+    assert "buildcheck_admin_session" in source
+    assert "BUILDCHECK_ADMIN_USERNAME" in source
+    assert "BUILDCHECK_ADMIN_PASSWORD" in source
     assert "BUILDCHECK_CONTACT_ADMIN_TOKEN" in source
-    assert "X-Admin-Token" in source
     assert "persist_contacts_locked()" in source
     assert "BUILDCHECK_CONTACT_DB_PATH" in source
 

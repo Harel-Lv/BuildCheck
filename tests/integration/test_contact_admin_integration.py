@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import time
+from http.cookiejar import CookieJar
 from pathlib import Path
 from urllib import error, request
 
@@ -50,7 +51,7 @@ def _wait_for_health(base: str, timeout_sec: float = 15.0) -> None:
     raise RuntimeError("API did not become healthy in time")
 
 
-def _json_request(method: str, url: str, payload: dict | None = None, headers: dict[str, str] | None = None):
+def _json_request(method: str, url: str, payload: dict | None = None, headers: dict[str, str] | None = None, opener=None):
     body = None
     req_headers = {}
     if payload is not None:
@@ -60,8 +61,9 @@ def _json_request(method: str, url: str, payload: dict | None = None, headers: d
         req_headers.update(headers)
 
     req = request.Request(url, data=body, method=method, headers=req_headers)
+    open_fn = opener.open if opener is not None else request.urlopen
     try:
-        with request.urlopen(req, timeout=5) as resp:
+        with open_fn(req, timeout=5) as resp:
             return resp.status, json.loads(resp.read().decode("utf-8"))
     except error.HTTPError as exc:
         raw = exc.read().decode("utf-8", errors="replace")
@@ -82,15 +84,19 @@ def test_contact_admin_auth_and_persistence(tmp_path: Path):
         pytest.skip(f"API binary not found: {api_bin}")
 
     db_path = tmp_path / "contact_submissions.json"
-    admin_token = "integration-admin-token-123"
     port = _pick_free_port()
     base = f"http://127.0.0.1:{port}"
 
     env = os.environ.copy()
     env["ENGINE_API_KEY"] = env.get("ENGINE_API_KEY", "integration-engine-key-1234567890")
-    env["BUILDCHECK_CONTACT_ADMIN_TOKEN"] = admin_token
+    env["BUILDCHECK_CONTACT_ADMIN_TOKEN"] = ""
+    env["BUILDCHECK_ADMIN_USERNAME"] = "admin"
+    env["BUILDCHECK_ADMIN_PASSWORD"] = "integration-password-123"
     env["BUILDCHECK_CONTACT_DB_PATH"] = str(db_path)
     env["API_PORT"] = str(port)
+
+    cookie_jar = CookieJar()
+    opener = request.build_opener(request.HTTPCookieProcessor(cookie_jar))
 
     proc = subprocess.Popen([str(api_bin)], cwd=str(ROOT), env=env)
     try:
@@ -113,16 +119,26 @@ def test_contact_admin_auth_and_persistence(tmp_path: Path):
         assert status == 401
 
         status, _ = _json_request(
-            "GET",
-            f"{base}/api/admin/contact/submissions",
-            headers={"X-Admin-Token": "wrong-token"},
+            "POST",
+            f"{base}/api/admin/login",
+            payload={"username": "admin", "password": "bad"},
+            opener=opener,
         )
         assert status == 401
+
+        status, login_data = _json_request(
+            "POST",
+            f"{base}/api/admin/login",
+            payload={"username": "admin", "password": "integration-password-123"},
+            opener=opener,
+        )
+        assert status == 200
+        assert login_data.get("ok") is True
 
         status, data = _json_request(
             "GET",
             f"{base}/api/admin/contact/submissions",
-            headers={"X-Admin-Token": admin_token},
+            opener=opener,
         )
         assert status == 200
         assert data.get("ok") is True
@@ -137,11 +153,21 @@ def test_contact_admin_auth_and_persistence(tmp_path: Path):
 
     proc2 = subprocess.Popen([str(api_bin)], cwd=str(ROOT), env=env)
     try:
+        cookie_jar2 = CookieJar()
+        opener2 = request.build_opener(request.HTTPCookieProcessor(cookie_jar2))
         _wait_for_health(base)
+        status, login2 = _json_request(
+            "POST",
+            f"{base}/api/admin/login",
+            payload={"username": "admin", "password": "integration-password-123"},
+            opener=opener2,
+        )
+        assert status == 200
+        assert login2.get("ok") is True
         status, data2 = _json_request(
             "GET",
             f"{base}/api/admin/contact/submissions",
-            headers={"X-Admin-Token": admin_token},
+            opener=opener2,
         )
         assert status == 200
         assert data2.get("ok") is True

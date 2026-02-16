@@ -11,17 +11,25 @@
     <div class="container">
       <header class="section__head">
         <h2>ניהול פניות יצירת קשר</h2>
-        <p>הזן טוקן אדמין כדי לראות את כל הנרשמים.</p>
+        <p>התחבר עם משתמש אדמין כדי לראות את כל הנרשמים.</p>
       </header>
 
       <div class="contact">
         <form class="card contact__form" id="adminForm">
           <div class="field">
-            <label for="adminToken">טוקן אדמין</label>
-            <input id="adminToken" type="password" placeholder="הדבק כאן את הטוקן" />
+            <label for="adminUsername">שם משתמש</label>
+            <input id="adminUsername" type="text" placeholder="admin" />
           </div>
-          <button class="btn btn--primary" type="submit" id="adminLoadBtn">טען פניות</button>
-          <p class="muted" id="adminStatus" data-kind="idle">ממתין לטוקן…</p>
+          <div class="field">
+            <label for="adminPassword">סיסמה</label>
+            <input id="adminPassword" type="password" placeholder="הזן סיסמה" />
+          </div>
+          <div class="hero__cta">
+            <button class="btn btn--primary" type="submit" id="adminLoginBtn">התחבר</button>
+            <button class="btn btn--ghost" type="button" id="adminRefreshBtn">רענן</button>
+            <button class="btn btn--ghost" type="button" id="adminLogoutBtn">התנתק</button>
+          </div>
+          <p class="muted" id="adminStatus" data-kind="idle">ממתין להתחברות…</p>
         </form>
 
         <aside class="card contact__info">

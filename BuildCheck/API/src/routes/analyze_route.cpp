@@ -245,9 +245,11 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
         }
 
         std::size_t max_files = 20;
+        constexpr std::size_t kMaxFilesHardCap = 100;
         if (const char* env_max_files = std::getenv("BUILDCHECK_MAX_FILES"); env_max_files && *env_max_files) {
             try {
                 max_files = std::max<std::size_t>(1, static_cast<std::size_t>(std::stoul(env_max_files)));
+                max_files = std::min(max_files, kMaxFilesHardCap);
             } catch (...) {
                 max_files = 20;
             }
@@ -352,7 +354,25 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
                 final_res.results.push_back(r);
                 continue;
             }
+            out.flush();
+            if (!out.good()) {
+                out.close();
+                std::error_code rm_ec;
+                std::filesystem::remove(tmp_path, rm_ec);
+                r.ok = false; r.error = "Failed to flush temp file";
+                final_res.results.push_back(r);
+                continue;
+            }
             out.close();
+            std::error_code sz_ec;
+            const auto saved_size = std::filesystem::file_size(tmp_path, sz_ec);
+            if (sz_ec || saved_size != f.content.size()) {
+                std::error_code rm_ec;
+                std::filesystem::remove(tmp_path, rm_ec);
+                r.ok = false; r.error = "Temp file size mismatch";
+                final_res.results.push_back(r);
+                continue;
+            }
 
             temp_paths.push_back(tmp_path.string());
 

@@ -345,8 +345,6 @@ img{ max-width:100%; display:block; }
 .preview img{
   width: 100%;
   height: auto;
-  transform: rotate(-180deg);
-  transform-origin: center;
 }
 .note{
   margin-top: 14px;

@@ -2,11 +2,28 @@ function $(id) {
   return document.getElementById(id);
 }
 
+function resolveApiBaseFromParams() {
+  try {
+    const url = new URL(window.location.href);
+    const q = String(url.searchParams.get("api_base") || "").trim();
+    if (q) return q.replace(/\/$/, "");
+  } catch {
+  }
+  return "";
+}
+
 function resolveApiBase() {
+  const fromParams = resolveApiBaseFromParams();
+  if (fromParams) return fromParams;
   if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_BASE === "string" && window.BUILDCHECK_API_BASE.trim()) {
     return window.BUILDCHECK_API_BASE.trim().replace(/\/$/, "");
   }
   if (window.location.protocol === "file:") {
+    try {
+      const saved = String(localStorage.getItem("buildcheck_api_base") || "").trim();
+      if (saved) return saved.replace(/\/$/, "");
+    } catch {
+    }
     return "http://127.0.0.1:8080";
   }
   return "";
@@ -14,6 +31,8 @@ function resolveApiBase() {
 
 const API_BASE = resolveApiBase();
 const ADMIN_LIST_URL = API_BASE ? `${API_BASE}/api/admin/contact/submissions` : "/api/admin/contact/submissions";
+const ADMIN_LOGIN_URL = API_BASE ? `${API_BASE}/api/admin/login` : "/api/admin/login";
+const ADMIN_LOGOUT_URL = API_BASE ? `${API_BASE}/api/admin/logout` : "/api/admin/logout";
 
 function setAdminStatus(text, kind = "idle") {
   const el = $("adminStatus");
@@ -64,43 +83,96 @@ function renderAdminList(items) {
   }
 }
 
+async function login(username, password) {
+  const res = await fetch(ADMIN_LOGIN_URL, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || data.ok !== true) {
+    const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+}
+
+async function loadSubmissions() {
+  const res = await fetch(ADMIN_LIST_URL, {
+    method: "GET",
+    credentials: "include",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data || data.ok !== true) {
+    const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  renderAdminList(data.items);
+}
+
+async function logout() {
+  await fetch(ADMIN_LOGOUT_URL, {
+    method: "POST",
+    credentials: "include",
+  });
+}
+
 function wireAdminPage() {
   const form = $("adminForm");
-  const tokenInput = $("adminToken");
-  const loadBtn = $("adminLoadBtn");
-  if (!form || !tokenInput || !loadBtn) return;
+  const userInput = $("adminUsername");
+  const passInput = $("adminPassword");
+  const loginBtn = $("adminLoginBtn");
+  const refreshBtn = $("adminRefreshBtn");
+  const logoutBtn = $("adminLogoutBtn");
+  if (!form || !userInput || !passInput || !loginBtn || !refreshBtn || !logoutBtn) return;
 
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const token = String(tokenInput.value || "").trim();
-    if (!token) {
-      setAdminStatus("נדרש טוקן אדמין.", "error");
+    const username = String(userInput.value || "").trim();
+    const password = String(passInput.value || "").trim();
+    if (!username || !password) {
+      setAdminStatus("נדרש שם משתמש וסיסמה.", "error");
       return;
     }
 
-    loadBtn.disabled = true;
-    setAdminStatus("טוען פניות…", "loading");
-
+    loginBtn.disabled = true;
+    setAdminStatus("מתחבר…", "loading");
     try {
-      const res = await fetch(ADMIN_LIST_URL, {
-        method: "GET",
-        headers: {
-          "X-Admin-Token": token,
-        },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data || data.ok !== true) {
-        const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-      renderAdminList(data.items);
-      setAdminStatus("הפניות נטענו בהצלחה.", "ok");
+      await login(username, password);
+      await loadSubmissions();
+      setAdminStatus("התחברת בהצלחה.", "ok");
+      passInput.value = "";
     } catch (e) {
       renderAdminList([]);
+      const msg = e instanceof Error ? e.message : "שגיאת התחברות";
+      setAdminStatus(msg, "error");
+    } finally {
+      loginBtn.disabled = false;
+    }
+  });
+
+  refreshBtn.addEventListener("click", async () => {
+    refreshBtn.disabled = true;
+    setAdminStatus("טוען פניות…", "loading");
+    try {
+      await loadSubmissions();
+      setAdminStatus("הפניות נטענו בהצלחה.", "ok");
+    } catch (e) {
       const msg = e instanceof Error ? e.message : "שגיאה בטעינת פניות";
       setAdminStatus(msg, "error");
     } finally {
-      loadBtn.disabled = false;
+      refreshBtn.disabled = false;
+    }
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    logoutBtn.disabled = true;
+    try {
+      await logout();
+      renderAdminList([]);
+      setAdminStatus("התנתקת.", "idle");
+    } finally {
+      logoutBtn.disabled = false;
     }
   });
 }
