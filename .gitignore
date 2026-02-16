@@ -121,3 +121,4 @@ docker-compose.override.yml
 *.zip
 *.rar
 *.7z
+contact_submissions*.json
