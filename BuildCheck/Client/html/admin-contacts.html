@@ -3,19 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BuildCheck | ניהול פניות</title>
+  <title>בוררות בנייה | ניהול פניות</title>
   <link rel="stylesheet" href="../CSS/style.css?v=20260216a" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="container topbar__inner">
+      <a class="brand" href="./index.html">
+        <span class="brand__mark">BB</span>
+        <span class="brand__text">
+          <strong>בוררות בנייה</strong>
+          <small>מערכת ניהול פניות</small>
+        </span>
+      </a>
+      <nav class="nav">
+        <a href="./index.html">לאתר הראשי</a>
+      </nav>
+    </div>
+  </header>
+
   <section class="section">
     <div class="container">
       <header class="section__head">
-        <h2>ניהול פניות יצירת קשר</h2>
-        <p>התחבר עם משתמש אדמין כדי לראות את כל הנרשמים.</p>
+        <h2>אדמין | פניות בוררות</h2>
+        <p>כניסה מאובטחת לצפייה בפניות חדשות של לקוחות ותיעוד זמני הרישום שלהן.</p>
       </header>
 
       <div class="contact">
         <form class="card contact__form" id="adminForm">
+          <h3>התחברות מנהל</h3>
           <div class="field">
             <label for="adminUsername">שם משתמש</label>
             <input id="adminUsername" type="text" placeholder="admin" />
@@ -26,14 +42,15 @@
           </div>
           <div class="hero__cta">
             <button class="btn btn--primary" type="submit" id="adminLoginBtn">התחבר</button>
-            <button class="btn btn--ghost" type="button" id="adminRefreshBtn">רענן</button>
+            <button class="btn btn--ghost" type="button" id="adminRefreshBtn">רענון פניות</button>
             <button class="btn btn--ghost" type="button" id="adminLogoutBtn">התנתק</button>
           </div>
           <p class="muted" id="adminStatus" data-kind="idle">ממתין להתחברות…</p>
         </form>
 
         <aside class="card contact__info">
-          <h3>כל הפניות</h3>
+          <h3>רשימת פונים</h3>
+          <p class="muted">התצוגה מהחדשה לישנה וכוללת שם, טלפון, הודעה ותאריך רישום.</p>
           <ul id="adminContactList" class="contact-log"></ul>
         </aside>
       </div>
@@ -47,8 +64,8 @@
     href="https://wa.me/972500000000?text=%D7%94%D7%99%D7%99%2C%20%D7%A8%D7%95%D7%A6%D7%94%20%D7%9C%D7%99%D7%A6%D7%95%D7%A8%20%D7%A7%D7%A9%D7%A8"
     target="_blank"
     rel="noopener noreferrer"
-    aria-label="צור קשר בוואטסאפ"
-    title="צור קשר בוואטסאפ">
+    aria-label="צור קשר בווטסאפ"
+    title="צור קשר בווטסאפ">
     <span class="whatsapp-fab__icon" aria-hidden="true">✆</span>
     <span class="whatsapp-fab__label">יצירת קשר</span>
   </a>
