@@ -1,0 +1,18 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Damage analysis illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eaf1f7"/>
+      <stop offset="100%" stop-color="#dce5ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect x="100" y="110" width="1000" height="480" rx="24" fill="#ffffff" stroke="#96aac0" stroke-width="6"/>
+  <rect x="160" y="170" width="520" height="360" rx="16" fill="#edf3fa" stroke="#a3b6ca" stroke-width="4"/>
+  <path d="M245 280L305 335L392 248L510 368" stroke="#4f7398" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="470" cy="445" r="52" fill="none" stroke="#24486d" stroke-width="14"/>
+  <line x1="507" y1="482" x2="560" y2="535" stroke="#24486d" stroke-width="14" stroke-linecap="round"/>
+  <rect x="760" y="195" width="270" height="55" rx="10" fill="#d7e3f1"/>
+  <rect x="760" y="280" width="320" height="55" rx="10" fill="#c3d4e8"/>
+  <rect x="760" y="365" width="230" height="55" rx="10" fill="#b1c6de"/>
+  <rect x="760" y="450" width="180" height="55" rx="10" fill="#9fb8d5"/>
+</svg>

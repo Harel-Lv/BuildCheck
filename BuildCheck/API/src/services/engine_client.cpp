@@ -8,6 +8,8 @@ std::string EngineClient::analyze_paths_json(const std::string& request_id,
                                              const std::vector<std::string>& image_paths,
                                              const std::string& rate_limit_key) const {
     httplib::Client cli(host_, port_);
+    cli.set_connection_timeout(5, 0);
+    cli.set_write_timeout(20, 0);
     cli.set_read_timeout(60, 0);
 
     json payload;

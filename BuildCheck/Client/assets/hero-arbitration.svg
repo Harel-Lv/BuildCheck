@@ -1,0 +1,49 @@
+<svg width="1400" height="900" viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Arbitration in construction">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5eee2"/>
+      <stop offset="100%" stop-color="#deceb5"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#dbe7f3"/>
+      <stop offset="100%" stop-color="#b9cadf"/>
+    </linearGradient>
+    <linearGradient id="building" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#efe5d6"/>
+      <stop offset="100%" stop-color="#ccb495"/>
+    </linearGradient>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="4" result="off"/>
+      <feColorMatrix in="off" type="matrix" values="0 0 0 0 0.10  0 0 0 0 0.16  0 0 0 0 0.24  0 0 0 0.25 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="900" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1400" height="360" fill="url(#sky)"/>
+
+  <rect x="60" y="250" width="1280" height="560" rx="28" fill="#fff7ea" stroke="#bba07d" stroke-width="6"/>
+
+  <g filter="url(#soft)">
+    <rect x="160" y="320" width="530" height="410" rx="20" fill="url(#building)" stroke="#9a7e5f" stroke-width="5"/>
+    <rect x="225" y="385" width="130" height="120" rx="8" fill="#f7efe4" stroke="#ab8f6f" stroke-width="4"/>
+    <rect x="385" y="385" width="130" height="120" rx="8" fill="#f7efe4" stroke="#ab8f6f" stroke-width="4"/>
+    <rect x="545" y="385" width="90" height="120" rx="8" fill="#f7efe4" stroke="#ab8f6f" stroke-width="4"/>
+    <rect x="225" y="540" width="255" height="150" rx="10" fill="#2a4666"/>
+    <rect x="510" y="540" width="125" height="150" rx="10" fill="#f3eadb" stroke="#ab8f6f" stroke-width="4"/>
+  </g>
+
+  <g filter="url(#soft)">
+    <rect x="770" y="330" width="470" height="360" rx="22" fill="#f6ecde" stroke="#a88a68" stroke-width="5"/>
+    <rect x="840" y="405" width="330" height="34" rx="10" fill="#c6ad8d"/>
+    <rect x="840" y="463" width="280" height="34" rx="10" fill="#c6ad8d"/>
+    <rect x="840" y="521" width="235" height="34" rx="10" fill="#c6ad8d"/>
+    <rect x="840" y="579" width="180" height="34" rx="10" fill="#c6ad8d"/>
+  </g>
+
+  <g filter="url(#soft)">
+    <circle cx="980" cy="300" r="82" fill="#e0ccb0" stroke="#9b7c58" stroke-width="6"/>
+    <rect x="948" y="258" width="64" height="74" rx="14" fill="#916e49"/>
+    <rect x="930" y="342" width="100" height="24" rx="12" fill="#916e49"/>
+  </g>
+</svg>

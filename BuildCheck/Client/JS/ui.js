@@ -54,7 +54,6 @@ export function showPreview(file) {
   };
 }
 
-export function setResult({ damageType = "—", details = "—" }) {
+export function setResult({ damageType = "—" }) {
   setText("damageType", damageType);
-  setText("details", details);
 }

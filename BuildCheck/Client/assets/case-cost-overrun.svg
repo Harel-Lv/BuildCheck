@@ -1,0 +1,23 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cost overrun illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef2f6"/>
+      <stop offset="100%" stop-color="#d9e0ea"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect x="100" y="90" width="1000" height="520" rx="24" fill="#f9fbff" stroke="#8da0b6" stroke-width="6"/>
+  <rect x="180" y="170" width="320" height="340" rx="16" fill="#f0f4fb" stroke="#99acc4" stroke-width="4"/>
+  <line x1="220" y1="230" x2="460" y2="230" stroke="#8ca0ba" stroke-width="10" stroke-linecap="round"/>
+  <line x1="220" y1="285" x2="460" y2="285" stroke="#8ca0ba" stroke-width="10" stroke-linecap="round"/>
+  <line x1="220" y1="340" x2="400" y2="340" stroke="#8ca0ba" stroke-width="10" stroke-linecap="round"/>
+  <line x1="220" y1="395" x2="430" y2="395" stroke="#8ca0ba" stroke-width="10" stroke-linecap="round"/>
+  <rect x="600" y="170" width="430" height="90" rx="12" fill="#d9e2ef"/>
+  <rect x="600" y="280" width="430" height="90" rx="12" fill="#c6d3e5"/>
+  <rect x="600" y="390" width="430" height="90" rx="12" fill="#b6c7de"/>
+  <path d="M690 515L775 425L845 470L960 335" stroke="#365a84" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <circle cx="690" cy="515" r="14" fill="#365a84"/>
+  <circle cx="775" cy="425" r="14" fill="#365a84"/>
+  <circle cx="845" cy="470" r="14" fill="#365a84"/>
+  <circle cx="960" cy="335" r="14" fill="#365a84"/>
+</svg>

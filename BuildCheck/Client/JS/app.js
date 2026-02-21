@@ -47,28 +47,27 @@ function resolveApiBase() {
 const ANALYZE_API_URL = resolveAnalyzeApiUrl();
 const API_BASE = resolveApiBase();
 const CONTACT_POST_URL = API_BASE ? `${API_BASE}/api/contact` : "/api/contact";
+const REQUEST_TIMEOUT_MS = 20000;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_IMAGE_EXT = new Set(["jpg", "jpeg", "png", "webp"]);
 
 let analyzeInFlight = false;
 let contactInFlight = false;
 
 function extractDamageType(apiJson) {
   if (!apiJson || typeof apiJson !== "object") {
-    return { damageType: "לא זוהה", details: "תגובה לא תקינה מהשרת." };
+    return { damageType: "לא זוהה" };
   }
 
   const results = Array.isArray(apiJson.results) ? apiJson.results : [];
   if (results.length === 0) {
-    return { damageType: "לא זוהה", details: "אין results בתגובה." };
+    return { damageType: "לא זוהה" };
   }
 
   const allTypes = [];
   const seen = new Set();
-  let firstError = "";
-  let okCount = 0;
 
   for (const item of results) {
-    if (item && item.ok) okCount += 1;
-    if (!firstError && item && typeof item.error === "string") firstError = item.error;
     const itemTypes = Array.isArray(item && item.damage_types) ? item.damage_types : [];
     for (const t of itemTypes) {
       const key = String(t);
@@ -80,27 +79,47 @@ function extractDamageType(apiJson) {
   }
 
   if (allTypes.length === 0) {
-    return {
-      damageType: "לא זוהה",
-      details: firstError || "לא התקבלו סוגי נזק מהמערכת.",
-    };
+    return { damageType: "לא זוהה" };
   }
 
-  const damageType = allTypes[0];
-  const extra = allTypes.slice(1);
-  const details = `${okCount}/${results.length} תמונות זוהו. ${extra.length > 0 ? `נמצאו גם: ${extra.join(", ")}` : ""}`.trim();
+  return { damageType: allTypes[0] };
+}
 
-  return { damageType, details };
+function validateImageFile(file) {
+  if (!file) return "לא נבחר קובץ.";
+  const name = String(file.name || "");
+  const dot = name.lastIndexOf(".");
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+  if (!ALLOWED_IMAGE_EXT.has(ext)) {
+    return "סוג קובץ לא נתמך. העלה JPG/PNG/WebP.";
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return "הקובץ גדול מדי (מקסימום 10MB).";
+  }
+  return "";
 }
 
 async function callAnalyzeApi(file) {
   const fd = new FormData();
   fd.append("images", file, file.name);
 
-  const res = await fetch(ANALYZE_API_URL, {
-    method: "POST",
-    body: fd,
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(ANALYZE_API_URL, {
+      method: "POST",
+      body: fd,
+      signal: ctrl.signal,
+    });
+  } catch (err) {
+    if (err && typeof err === "object" && err.name === "AbortError") {
+      throw new Error("תם הזמן לניתוח. נסה שוב בעוד רגע.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const text = await res.text();
   let json = null;
@@ -131,10 +150,10 @@ function wireAnalyzeUi() {
       showPreview(file || null);
       if (file) {
         setStatus("תמונה נבחרה. לחץ על 'ניתוח תמונה'.", "idle");
-        setResult({ damageType: "—", details: "—" });
+        setResult({ damageType: "—" });
       } else {
         setStatus("ממתין לקובץ…", "idle");
-        setResult({ damageType: "—", details: "—" });
+        setResult({ damageType: "—" });
       }
     });
   }
@@ -146,24 +165,30 @@ function wireAnalyzeUi() {
 
       if (!file) {
         setStatus("בחר תמונה לפני ניתוח.", "error");
-        setResult({ damageType: "—", details: "לא נבחר קובץ." });
+        setResult({ damageType: "—" });
+        return;
+      }
+
+      const fileErr = validateImageFile(file);
+      if (fileErr) {
+        setStatus("הניתוח נכשל.", "error");
+        setResult({ damageType: "לא זוהה" });
         return;
       }
 
       analyzeInFlight = true;
       analyzeBtn.disabled = true;
       setStatus("מנתח…", "loading");
-      setResult({ damageType: "—", details: "שולח תמונה לשרת…" });
+      setResult({ damageType: "—" });
 
       try {
         const apiJson = await callAnalyzeApi(file);
-        const { damageType, details } = extractDamageType(apiJson);
+        const { damageType } = extractDamageType(apiJson);
         setStatus(apiJson && apiJson.ok ? "הניתוח הסתיים." : "הניתוח הושלם ללא זיהוי נזק.", apiJson && apiJson.ok ? "ok" : "error");
-        setResult({ damageType, details });
+        setResult({ damageType });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "שגיאת שרת לא ידועה";
         setStatus("הניתוח נכשל.", "error");
-        setResult({ damageType: "לא זוהה", details: msg });
+        setResult({ damageType: "לא זוהה" });
       } finally {
         analyzeInFlight = false;
         analyzeBtn.disabled = false;
@@ -214,11 +239,24 @@ function wireContactForm() {
     setContactStatus("שומר פרטים…", "loading");
 
     try {
-      const res = await fetch(CONTACT_POST_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, phone, message }),
-      });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+      let res;
+      try {
+        res = await fetch(CONTACT_POST_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, phone, message }),
+          signal: ctrl.signal,
+        });
+      } catch (errFetch) {
+        if (errFetch && typeof errFetch === "object" && errFetch.name === "AbortError") {
+          throw new Error("תם הזמן לשליחת הפנייה. נסה שוב.");
+        }
+        throw errFetch;
+      } finally {
+        clearTimeout(timer);
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data || data.ok !== true) {
         const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;

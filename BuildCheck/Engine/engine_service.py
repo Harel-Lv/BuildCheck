@@ -53,6 +53,13 @@ def _env_float(name: str, default: float, minimum: float | None = None, maximum:
     return value
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 def _resolve_allowed_roots() -> list[Path]:
     raw = os.getenv("ENGINE_ALLOWED_ROOTS", "").strip()
     if not raw:
@@ -132,6 +139,44 @@ def _extract_damage_types(result: Any, names: Any) -> list[str]:
     return ordered_unique
 
 
+def _heuristic_damage_types(path: Path) -> list[str]:
+    # Heuristic fallback for environments where a trained model file is unavailable.
+    try:
+        import cv2  # type: ignore
+    except Exception:
+        return []
+
+    img = cv2.imread(str(path))
+    if img is None:
+        return []
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    edges = cv2.Canny(gray, 80, 170)
+
+    edge_ratio = float((edges > 0).mean())
+    sat = float(hsv[:, :, 1].mean()) / 255.0
+    val = float(hsv[:, :, 2].mean()) / 255.0
+    b = float(img[:, :, 0].mean()) / 255.0
+    r = float(img[:, :, 2].mean()) / 255.0
+
+    labels: list[str] = []
+    if edge_ratio > 0.085 and sat < 0.36:
+        labels.append("crack")
+    if (b - r) > 0.05 and sat > 0.20:
+        labels.append("leakage")
+    if val > 0.70 and sat < 0.22 and edge_ratio < 0.12:
+        labels.append("peeling")
+    if edge_ratio > 0.16 and val < 0.56:
+        labels.append("breakage")
+
+    # Ensure a usable label for UX instead of a hard failure when image quality is poor.
+    if not labels:
+        labels.append("suspected_damage")
+
+    return labels[:2]
+
+
 MODEL, MODEL_PATH_STR, MODEL_ERROR = _load_model()
 CONF = _env_float("YOLO_CONF", 0.25, minimum=0.0, maximum=1.0)
 MAX_PATHS = _env_int("ENGINE_MAX_PATHS", 20, minimum=1, maximum=200)
@@ -148,6 +193,7 @@ RATE_LIMIT_CLEANUP_INTERVAL_SEC = 120.0
 RATE_LIMIT_LAST_CLEANUP = 0.0
 RATE_LIMIT_REDIS_CLIENT: Any | None = None
 RATE_LIMIT_REDIS_LOCK = threading.Lock()
+ENGINE_ALLOW_HEURISTIC_FALLBACK = _env_bool("ENGINE_ALLOW_HEURISTIC_FALLBACK", True)
 
 MIN_ENGINE_KEY_LEN = _env_int("ENGINE_MIN_KEY_LEN", 24, minimum=8, maximum=256)
 WEAK_ENGINE_KEYS = {"", "change-me", "changeme", "default", "password", "123456"}
@@ -238,19 +284,26 @@ def _is_engine_key_strong(key: str) -> bool:
 def health() -> dict[str, Any]:
     auth_configured = bool(ENGINE_API_KEY)
     auth_strong = _is_engine_key_strong(ENGINE_API_KEY) if auth_configured else False
+    fallback_mode = MODEL is None and ENGINE_ALLOW_HEURISTIC_FALLBACK
+    errors: list[str] = []
     payload: dict[str, Any] = {
-        "ok": MODEL is not None,
+        "ok": MODEL is not None or fallback_mode,
         "service": "engine",
         "model_loaded": MODEL is not None,
+        "inference_mode": "model" if MODEL is not None else ("heuristic_fallback" if fallback_mode else "unavailable"),
         "auth_enabled": auth_configured,
         "auth_strong": auth_strong,
         "rate_limit_rpm": RATE_LIMIT_RPM,
         "rate_limit_backend": RATE_LIMIT_BACKEND,
     }
     if auth_configured and not auth_strong:
-        payload["error"] = f"ENGINE_API_KEY is weak; must be at least {MIN_ENGINE_KEY_LEN} chars"
-    if MODEL_ERROR:
-        payload["error"] = MODEL_ERROR
+        errors.append(f"ENGINE_API_KEY is weak; must be at least {MIN_ENGINE_KEY_LEN} chars")
+    if MODEL_ERROR and not fallback_mode:
+        errors.append(MODEL_ERROR)
+    elif MODEL_ERROR and fallback_mode:
+        payload["warning"] = MODEL_ERROR
+    if errors:
+        payload["error"] = "; ".join(errors)
     return payload
 
 
@@ -270,7 +323,7 @@ def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = He
     if not _rate_limit_ok(rate_limit_key):
         return JSONResponse(status_code=429, content={"ok": False, "error": "rate limit exceeded"})
 
-    if MODEL is None:
+    if MODEL is None and not ENGINE_ALLOW_HEURISTIC_FALLBACK:
         return JSONResponse(status_code=500, content={"ok": False, "error": MODEL_ERROR or "model unavailable"})
 
     if not req.paths:
@@ -279,7 +332,7 @@ def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = He
         return JSONResponse(status_code=400, content={"ok": False, "error": f"too many paths (max {MAX_PATHS})"})
 
     results: list[dict[str, Any]] = []
-    names = MODEL.names
+    names = MODEL.names if MODEL is not None else {}
 
     for raw_path in req.paths:
         path = Path(raw_path).expanduser()
@@ -291,8 +344,11 @@ def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = He
             continue
 
         try:
-            pred = MODEL.predict(source=str(path), conf=CONF, verbose=False)
-            damage_types = _extract_damage_types(pred[0], names) if pred else []
+            if MODEL is None:
+                damage_types = _heuristic_damage_types(path)
+            else:
+                pred = MODEL.predict(source=str(path), conf=CONF, verbose=False)
+                damage_types = _extract_damage_types(pred[0], names) if pred else []
             ok = len(damage_types) > 0
             item: dict[str, Any] = {"ok": ok, "path": str(path), "damage_types": damage_types}
             if not ok:

@@ -1,0 +1,19 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Delivery delay illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f2efe7"/>
+      <stop offset="100%" stop-color="#e6ddcf"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bg)"/>
+  <rect x="120" y="120" width="960" height="460" rx="22" fill="#fffaf0" stroke="#b8a286" stroke-width="6"/>
+  <circle cx="360" cy="350" r="170" fill="#f0e2cc" stroke="#b39266" stroke-width="8"/>
+  <line x1="360" y1="350" x2="360" y2="245" stroke="#775233" stroke-width="12" stroke-linecap="round"/>
+  <line x1="360" y1="350" x2="435" y2="390" stroke="#775233" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="360" cy="350" r="15" fill="#775233"/>
+  <rect x="590" y="230" width="380" height="220" rx="14" fill="#e8d6bb" stroke="#9f7e57" stroke-width="5"/>
+  <rect x="635" y="275" width="290" height="22" rx="8" fill="#bc9a70"/>
+  <rect x="635" y="320" width="250" height="22" rx="8" fill="#bc9a70"/>
+  <rect x="635" y="365" width="210" height="22" rx="8" fill="#bc9a70"/>
+  <path d="M702 515L742 455L785 498L855 430L904 472L980 382" stroke="#2f4f72" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>

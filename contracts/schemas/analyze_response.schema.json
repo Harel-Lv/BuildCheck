@@ -22,7 +22,7 @@
           "error": { "type": "string" }
         },
         "required": ["filename", "ok"],
-        "additionalProperties": true
+        "additionalProperties": false
       }
     },
     "error": {

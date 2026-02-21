@@ -51,6 +51,7 @@
 
       <div class="hero__card">
         <div class="card card--stat">
+          <img class="hero-visual" src="../assets/hero-arbitration.svg" alt="בוררות מקצועית בענף הבנייה" loading="eager" />
           <h3>מתי פונים לבוררות?</h3>
           <ul class="list">
             <li>מחלוקת על ליקויי בנייה ואיכות ביצוע</li>
@@ -113,19 +114,19 @@
 
       <div class="grid grid--3">
         <article class="card card--project">
-          <div class="ph"></div>
+          <img class="case-visual" src="../assets/case-finish-defects.svg" alt="המחשת ליקויי גמר בבנייה" loading="lazy" />
           <h3>ליקויי גמר</h3>
           <p>מחלוקות על ריצוף, טיח, צבע, איטום ורמת ביצוע בפועל.</p>
         </article>
 
         <article class="card card--project">
-          <div class="ph"></div>
+          <img class="case-visual" src="../assets/case-cost-overrun.svg" alt="המחשת מחלוקת על עלויות וחריגות תקציב" loading="lazy" />
           <h3>חריגות ועלויות</h3>
           <p>מחלוקות על תוספות, שינויים וחשבונות ביניים/סופיים.</p>
         </article>
 
         <article class="card card--project">
-          <div class="ph"></div>
+          <img class="case-visual" src="../assets/case-delivery-delay.svg" alt="המחשת מחלוקת על איחור במסירה" loading="lazy" />
           <h3>איחורים במסירה</h3>
           <p>מחלוקות על אחריות לעיכובים, נזקים ולוחות זמנים.</p>
         </article>
@@ -146,10 +147,11 @@
       <div class="damage">
         <div class="card">
           <h3>העלאת תמונה</h3>
+          <img class="section-visual" src="../assets/damage-analysis.svg" alt="המחשת בדיקת נזק מתמונה" loading="lazy" />
 
           <form class="upload" id="damageForm">
             <label class="upload__box" for="damageImage">
-              <input id="damageImage" name="images" type="file" accept="image/*" />
+              <input id="damageImage" name="images" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" />
               <span class="upload__hint">
                 לחץ כדי לבחור תמונה / גרור לכאן
               </span>
@@ -178,11 +180,6 @@
             <div class="result__row">
               <span class="result__label">סוג נזק</span>
               <span class="result__value" id="damageType">—</span>
-            </div>
-
-            <div class="result__row">
-              <span class="result__label">פירוט</span>
-              <span class="result__value" id="details">—</span>
             </div>
 
             <div class="preview" id="previewBox" aria-hidden="true">
@@ -231,6 +228,7 @@
         </form>
 
         <aside class="card contact__info">
+          <img class="section-visual" src="../assets/contact-arbitration.svg" alt="המחשת תהליך יצירת קשר לבוררות" loading="lazy" />
           <h3>פרטים</h3>
           <p><strong>תחום:</strong> בוררות בסכסוכי בנייה ושיפוץ</p>
           <p><strong>שעות:</strong> א׳–ה׳ 09:00–18:00</p>

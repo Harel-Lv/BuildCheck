@@ -33,6 +33,24 @@ const API_BASE = resolveApiBase();
 const ADMIN_LIST_URL = API_BASE ? `${API_BASE}/api/admin/contact/submissions` : "/api/admin/contact/submissions";
 const ADMIN_LOGIN_URL = API_BASE ? `${API_BASE}/api/admin/login` : "/api/admin/login";
 const ADMIN_LOGOUT_URL = API_BASE ? `${API_BASE}/api/admin/logout` : "/api/admin/logout";
+const REQUEST_TIMEOUT_MS = 20000;
+
+async function fetchJsonWithTimeout(url, options = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  } catch (err) {
+    if (err && typeof err === "object" && err.name === "AbortError") {
+      throw new Error("תם הזמן לבקשה. נסה שוב.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function setAdminStatus(text, kind = "idle") {
   const el = $("adminStatus");
@@ -84,13 +102,12 @@ function renderAdminList(items) {
 }
 
 async function login(username, password) {
-  const res = await fetch(ADMIN_LOGIN_URL, {
+  const { res, data } = await fetchJsonWithTimeout(ADMIN_LOGIN_URL, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || data.ok !== true) {
     const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
     throw new Error(msg);
@@ -98,11 +115,10 @@ async function login(username, password) {
 }
 
 async function loadSubmissions() {
-  const res = await fetch(ADMIN_LIST_URL, {
+  const { res, data } = await fetchJsonWithTimeout(ADMIN_LIST_URL, {
     method: "GET",
     credentials: "include",
   });
-  const data = await res.json().catch(() => ({}));
   if (!res.ok || !data || data.ok !== true) {
     const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
     throw new Error(msg);
@@ -111,10 +127,14 @@ async function loadSubmissions() {
 }
 
 async function logout() {
-  await fetch(ADMIN_LOGOUT_URL, {
+  const { res, data } = await fetchJsonWithTimeout(ADMIN_LOGOUT_URL, {
     method: "POST",
     credentials: "include",
   });
+  if (!res.ok || (data && data.ok === false)) {
+    const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
 }
 
 function wireAdminPage() {
@@ -171,6 +191,9 @@ function wireAdminPage() {
       await logout();
       renderAdminList([]);
       setAdminStatus("התנתקת.", "idle");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "שגיאת ניתוק";
+      setAdminStatus(msg, "error");
     } finally {
       logoutBtn.disabled = false;
     }
