@@ -19,7 +19,11 @@
           },
           "cost_min": { "type": "integer" },
           "cost_max": { "type": "integer" },
-          "error": { "type": "string" }
+          "error": { "type": "string" },
+          "inference_mode": {
+            "type": "string",
+            "enum": ["model", "heuristic_fallback"]
+          }
         },
         "required": ["filename", "ok"],
         "additionalProperties": false

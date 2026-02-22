@@ -49,6 +49,7 @@ paths:
                         damage_types: [crack]
                         cost_min: 500
                         cost_max: 1500
+                        inference_mode: model
         "400":
           description: Validation error
           content:

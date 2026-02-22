@@ -454,6 +454,7 @@ void register_analyze_route(httplib::Server& server, const EngineClient& engine)
                     filled[out_idx] = true;
 
                     final_res.results[out_idx].ok = er.value("ok", false);
+                    final_res.results[out_idx].inference_mode = er.value("inference_mode", "");
 
                     // damage_types
                     final_res.results[out_idx].damage_types.clear();

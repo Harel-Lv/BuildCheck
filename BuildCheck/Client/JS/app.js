@@ -56,18 +56,22 @@ let contactInFlight = false;
 
 function extractDamageType(apiJson) {
   if (!apiJson || typeof apiJson !== "object") {
-    return { damageType: "לא זוהה" };
+    return { damageType: "לא זוהה", inferenceMode: "" };
   }
 
   const results = Array.isArray(apiJson.results) ? apiJson.results : [];
   if (results.length === 0) {
-    return { damageType: "לא זוהה" };
+    return { damageType: "לא זוהה", inferenceMode: "" };
   }
 
   const allTypes = [];
   const seen = new Set();
+  let inferenceMode = "";
 
   for (const item of results) {
+    if (!inferenceMode && item && typeof item.inference_mode === "string") {
+      inferenceMode = item.inference_mode;
+    }
     const itemTypes = Array.isArray(item && item.damage_types) ? item.damage_types : [];
     for (const t of itemTypes) {
       const key = String(t);
@@ -79,10 +83,11 @@ function extractDamageType(apiJson) {
   }
 
   if (allTypes.length === 0) {
-    return { damageType: "לא זוהה" };
+    return { damageType: "לא זוהה", inferenceMode };
   }
 
-  return { damageType: allTypes[0] };
+  const firstType = allTypes[0] === "suspected_damage" ? "חשד לנזק" : allTypes[0];
+  return { damageType: firstType, inferenceMode };
 }
 
 function validateImageFile(file) {
@@ -183,8 +188,13 @@ function wireAnalyzeUi() {
 
       try {
         const apiJson = await callAnalyzeApi(file);
-        const { damageType } = extractDamageType(apiJson);
-        setStatus(apiJson && apiJson.ok ? "הניתוח הסתיים." : "הניתוח הושלם ללא זיהוי נזק.", apiJson && apiJson.ok ? "ok" : "error");
+        const { damageType, inferenceMode } = extractDamageType(apiJson);
+        const fallback = inferenceMode === "heuristic_fallback";
+        if (fallback) {
+          setStatus("הניתוח הושלם במצב גיבוי (ללא מודל מלא).", "error");
+        } else {
+          setStatus(apiJson && apiJson.ok ? "הניתוח הסתיים." : "הניתוח הושלם ללא זיהוי נזק.", apiJson && apiJson.ok ? "ok" : "error");
+        }
         setResult({ damageType });
       } catch (err) {
         setStatus("הניתוח נכשל.", "error");

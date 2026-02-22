@@ -337,10 +337,22 @@ def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = He
     for raw_path in req.paths:
         path = Path(raw_path).expanduser()
         if not _is_path_within_allowed_roots(path, ALLOWED_ROOTS):
-            results.append({"ok": False, "path": str(path), "damage_types": [], "error": "path not allowed"})
+            results.append({
+                "ok": False,
+                "path": str(path),
+                "damage_types": [],
+                "error": "path not allowed",
+                "inference_mode": "heuristic_fallback" if MODEL is None else "model",
+            })
             continue
         if not path.exists() or not path.is_file():
-            results.append({"ok": False, "path": str(path), "damage_types": [], "error": "file not found"})
+            results.append({
+                "ok": False,
+                "path": str(path),
+                "damage_types": [],
+                "error": "file not found",
+                "inference_mode": "heuristic_fallback" if MODEL is None else "model",
+            })
             continue
 
         try:
@@ -350,11 +362,22 @@ def analyze(req: AnalyzeRequest, request: Request, x_engine_key: str | None = He
                 pred = MODEL.predict(source=str(path), conf=CONF, verbose=False)
                 damage_types = _extract_damage_types(pred[0], names) if pred else []
             ok = len(damage_types) > 0
-            item: dict[str, Any] = {"ok": ok, "path": str(path), "damage_types": damage_types}
+            item: dict[str, Any] = {
+                "ok": ok,
+                "path": str(path),
+                "damage_types": damage_types,
+                "inference_mode": "heuristic_fallback" if MODEL is None else "model",
+            }
             if not ok:
                 item["error"] = "no damage detected"
             results.append(item)
         except Exception:  # pragma: no cover - runtime dependency
-            results.append({"ok": False, "path": str(path), "damage_types": [], "error": "inference failed"})
+            results.append({
+                "ok": False,
+                "path": str(path),
+                "damage_types": [],
+                "error": "inference failed",
+                "inference_mode": "heuristic_fallback" if MODEL is None else "model",
+            })
 
     return JSONResponse(status_code=200, content={"ok": any(r.get("ok", False) for r in results), "results": results})

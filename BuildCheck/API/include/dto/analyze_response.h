@@ -14,6 +14,7 @@ struct AnalyzeImageResult {
 
     // If ok==false
     std::string error;
+    std::string inference_mode;
 };
 
 struct AnalyzeResponse {
@@ -71,6 +72,9 @@ struct AnalyzeResponse {
                    << R"(,"cost_max":)" << r.cost_max;
             } else {
                 os << R"(,"error":")" << escape_json(r.error) << R"(")";
+            }
+            if (!r.inference_mode.empty()) {
+                os << R"(,"inference_mode":")" << escape_json(r.inference_mode) << R"(")";
             }
 
             os << "}";
