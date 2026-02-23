@@ -244,9 +244,14 @@ switch ($Action) {
         if (-not (Test-Health -Url "$ApiBase/health") -or -not (Test-Health -Url "$EngineBase/engine/health")) {
             throw "[local] services are down. run: powershell -ExecutionPolicy Bypass -File scripts/local_stack.ps1 -Action start"
         }
-        python -m pytest -q tests/integration/test_live_e2e.py
-        if ($LASTEXITCODE -ne 0) { throw "[local] live_e2e smoke failed" }
-        python -m pytest -q tests/integration/test_contact_admin_integration.py
-        if ($LASTEXITCODE -ne 0) { throw "[local] contact_admin integration failed" }
+        Push-Location $RootDir
+        try {
+            python -m pytest -q tests/integration/test_live_e2e.py
+            if ($LASTEXITCODE -ne 0) { throw "[local] live_e2e smoke failed" }
+            python -m pytest -q tests/integration/test_contact_admin_integration.py
+            if ($LASTEXITCODE -ne 0) { throw "[local] contact_admin integration failed" }
+        } finally {
+            Pop-Location
+        }
     }
 }

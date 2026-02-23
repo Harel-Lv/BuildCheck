@@ -1,5 +1,16 @@
 import { $, setStatus, setResult, showPreview } from "./ui.js";
 
+const LOCAL_DEV_API_BASE = "http://127.0.0.1:8080";
+
+function shouldForceLocalDevApiBase() {
+  const host = String(window.location.hostname || "").toLowerCase();
+  const port = String(window.location.port || "");
+  const isLocalHost = host === "localhost" || host === "127.0.0.1";
+  if (!isLocalHost) return false;
+  // 8081 is expected nginx/web proxy in this project; keep relative /api there.
+  return !["8080", "8081", "80", "443", ""].includes(port);
+}
+
 function resolveApiBaseFromParams() {
   try {
     const url = new URL(window.location.href);
@@ -11,18 +22,29 @@ function resolveApiBaseFromParams() {
 }
 
 function resolveAnalyzeApiUrl() {
+  function buildAnalyzeUrl(raw) {
+    const base = String(raw || "").trim().replace(/\/$/, "");
+    if (!base) return "";
+    if (base.endsWith("/api/property/analyze")) return base;
+    if (base.endsWith("/api")) return `${base}/property/analyze`;
+    return `${base}/api/property/analyze`;
+  }
+
   const fromParams = resolveApiBaseFromParams();
-  if (fromParams) return `${fromParams}/api/property/analyze`;
+  if (fromParams) return buildAnalyzeUrl(fromParams);
   if (typeof window !== "undefined" && typeof window.BUILDCHECK_API_URL === "string" && window.BUILDCHECK_API_URL.trim()) {
-    return window.BUILDCHECK_API_URL.trim();
+    return buildAnalyzeUrl(window.BUILDCHECK_API_URL.trim());
   }
   if (window.location.protocol === "file:") {
     try {
       const saved = String(localStorage.getItem("buildcheck_api_base") || "").trim();
-      if (saved) return `${saved.replace(/\/$/, "")}/api/property/analyze`;
+      if (saved) return buildAnalyzeUrl(saved);
     } catch {
     }
     return "http://127.0.0.1:8080/api/property/analyze";
+  }
+  if (shouldForceLocalDevApiBase()) {
+    return `${LOCAL_DEV_API_BASE}/api/property/analyze`;
   }
   return "/api/property/analyze";
 }
@@ -39,7 +61,10 @@ function resolveApiBase() {
       if (saved) return saved.replace(/\/$/, "");
     } catch {
     }
-    return "http://127.0.0.1:8080";
+    return LOCAL_DEV_API_BASE;
+  }
+  if (shouldForceLocalDevApiBase()) {
+    return LOCAL_DEV_API_BASE;
   }
   return "";
 }
@@ -177,7 +202,7 @@ function wireAnalyzeUi() {
       const fileErr = validateImageFile(file);
       if (fileErr) {
         setStatus("הניתוח נכשל.", "error");
-        setResult({ damageType: "לא זוהה" });
+        setResult({ damageType: fileErr });
         return;
       }
 
@@ -197,8 +222,9 @@ function wireAnalyzeUi() {
         }
         setResult({ damageType });
       } catch (err) {
+        const msg = err instanceof Error ? err.message : "שגיאה לא ידועה";
         setStatus("הניתוח נכשל.", "error");
-        setResult({ damageType: "לא זוהה" });
+        setResult({ damageType: msg });
       } finally {
         analyzeInFlight = false;
         analyzeBtn.disabled = false;

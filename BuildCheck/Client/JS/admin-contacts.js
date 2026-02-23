@@ -2,6 +2,16 @@ function $(id) {
   return document.getElementById(id);
 }
 
+const LOCAL_DEV_API_BASE = "http://127.0.0.1:8080";
+
+function shouldForceLocalDevApiBase() {
+  const host = String(window.location.hostname || "").toLowerCase();
+  const port = String(window.location.port || "");
+  const isLocalHost = host === "localhost" || host === "127.0.0.1";
+  if (!isLocalHost) return false;
+  return !["8080", "8081", "80", "443", ""].includes(port);
+}
+
 function resolveApiBaseFromParams() {
   try {
     const url = new URL(window.location.href);
@@ -24,7 +34,10 @@ function resolveApiBase() {
       if (saved) return saved.replace(/\/$/, "");
     } catch {
     }
-    return "http://127.0.0.1:8080";
+    return LOCAL_DEV_API_BASE;
+  }
+  if (shouldForceLocalDevApiBase()) {
+    return LOCAL_DEV_API_BASE;
   }
   return "";
 }
